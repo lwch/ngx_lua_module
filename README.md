@@ -44,7 +44,7 @@ When there is a syntax error or any other error it will write the log and **stil
 
 **phase:** content
 
-Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#7)**(high priority)** or [lua_error_by_file](#8)\.
+Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error)**(high priority)** or [lua_error_by_file](#lua_error_by_file)\.
 
 ### lua_content_by_file
 
@@ -56,7 +56,7 @@ Each script **must** return a string or nil\. When there is a syntax error or an
 
 **phase:** content
 
-Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#7)**(high priority)** or [lua_error_by_file](#8)\. When there is a file not found error it will return 404 error\. When [lua_code_cache](#2) is on the script will cache with it's absolute path\.
+Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error)**(high priority)** or [lua_error_by_file](#lua_error_by_file)\. When there is a file not found error it will return 404 error\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
 
 ### lua_error
 
@@ -80,7 +80,7 @@ When there is a syntax error or any other error with script it will write the lo
 
 **phase:** content
 
-When there is a syntax error or any other error it will write the log and return nothing for client\.
+When there is a syntax error or any other error it will write the log and return nothing for client\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
 
 ## Nginx API for Lua
 
