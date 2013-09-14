@@ -16,7 +16,7 @@
 
 **default:** nil
 
-**context:** server
+**context:** main
 
 **phase:** init process
 
@@ -28,7 +28,7 @@ When there is a syntax error or any other error with script it will write the lo
 
 **default:** nil
 
-**context:** server
+**context:** main
 
 **phase:** init process
 
