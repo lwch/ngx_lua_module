@@ -1,5 +1,8 @@
 # ngx_lua_module
 
+## build status
+[![Build Status](https://travis-ci.org/lwch/ngx_lua_module.png)](https://travis-ci.org/lwch/ngx_lua_module)
+
 ## Directives
 
 ### lua_code_cache

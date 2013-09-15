@@ -1,0 +1,15 @@
+language: c
+compiler:
+    - gcc
+    - clang
+before_script:
+    - sudo apt-get update lua
+    - sudo apt-get install lua
+    - git clone git@github.com:antirez/redis.git && cd redis
+script: ./configure --add-module=../ && make
+notifications:
+    recipients:
+        - lwch748@gmail.com
+    email:
+        on_success: change
+        on_failure: always
