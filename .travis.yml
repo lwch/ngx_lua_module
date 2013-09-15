@@ -2,7 +2,9 @@ language: c
 compiler:
     - gcc
     - clang
-before_script: git clone git@github.com:antirez/redis.git && cd redis
+before_script:
+    - echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+    - git clone git@github.com:antirez/redis.git && cd redis
 script: ./configure --add-module=../ && make
 notifications:
     recipients:
