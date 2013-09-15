@@ -2,10 +2,7 @@ language: c
 compiler:
     - gcc
     - clang
-before_script:
-    - echo "" > ~/.ssh/config
-    - ssh-keyscan -H github.com >> ~/.ssh/known_hosts
-    - git clone git@github.com:antirez/redis.git redis && cd redis
+before_script: git clone git@github.com:antirez/redis.git redis && cd redis
 script: ./configure --add-module=../ && make
 notifications:
     recipients:
