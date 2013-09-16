@@ -3,44 +3,49 @@
 #include <ngx_http.h>
 
 #include "ngx_lua_module.h"
+#include "ngx_lua_module_util.h"
+
 #include "ngx_lua_content.h"
 
-// TODO: 传参
-ngx_int_t ngx_lua_content_handler(ngx_http_request_t* r)
+ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua)
 {
-    ngx_lua_main_conf_t* pmainconf;
-    ngx_lua_loc_conf_t*  plocconf;
+//    ngx_lua_loc_conf_t*  pconf;
+
+//    pconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
+//    if (pconf->lua_error_code.len)
+    return NGX_OK;
+}
+
+ngx_int_t ngx_lua_content_call_code(ngx_http_request_t* r, lua_State* lua, u_char* code, size_t len)
+{
+    if (luaL_loadbuffer(lua, (const char*)code, len, "@lua_content")) return ngx_lua_content_call_error(r, lua);
+    if (lua_pcall(lua, 0, 1, 0)) return ngx_lua_content_call_error(r, lua);
+    return NGX_OK;
+}
+
+// send content to client
+// error: 1 out of memory
+//        2 returned unsupported type
+//        3 send header error
+//        4 send content error
+ngx_int_t ngx_lua_content_send(ngx_http_request_t* r, lua_State* lua)
+{
     ngx_int_t            rc;
     ngx_buf_t*           b;
     ngx_chain_t          out;
     size_t               size;
-    printf("ngx_lua_content_handler\n");
-
-    pmainconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
-    plocconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
-
-    if (plocconf->lua_content_code.len)
-    {
-        if (luaL_loadbuffer(pmainconf->lua, (const char*)plocconf->lua_content_code.data, plocconf->lua_content_code.len, "@lua_content"))
-        {
-            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_init_process: luaL_loadbuffer error");
-            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_init_process: %s", lua_tostring(pmainconf->lua, -1));
-            return NGX_ERROR;
-        }
-        if (lua_pcall(pmainconf->lua, 0, 1, 0))
-        {
-            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_init_process: lua_pcall error");
-            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_init_process: %s", lua_tostring(pmainconf->lua, -1));
-            return NGX_ERROR;
-        }
-    }
 
     b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
-    if (b == NULL) return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    if (b == NULL)
+    {
+        lua_pop(lua, 1);
+        lua_pushnumber(lua, 1);
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
     out.buf = b;
     out.next = NULL;
 
-    if (lua_isnil(pmainconf->lua, -1))
+    if (lua_isnil(lua, -1))
     {
         b->pos = NULL;
         b->last = NULL;
@@ -48,37 +53,89 @@ ngx_int_t ngx_lua_content_handler(ngx_http_request_t* r)
         b->last_buf = 1;
         size = 0;
     }
-    else
+    else if (lua_isstring(lua, -1))
     {
-        const char* result = luaL_checklstring(pmainconf->lua, -1, &size);
+        const char* result = luaL_checklstring(lua, -1, &size);
         b->pos = (u_char*)result;  /* the begin offset of the buffer */
         b->last = (u_char*)result + size; /* the end offset of the buffer */
         b->memory = 1;    /* this buffer is in memory */
         b->last_buf = 1;  /* this is the last buffer in the buffer chain */
     }
- 
-    //还是完善HTTP头
-    /* set the status line */
+    else
+    {
+        lua_pop(lua, 1);
+        lua_pushnumber(lua, 2);
+        return NGX_ERROR;
+    }
+
     r->headers_out.status = NGX_HTTP_OK;
     r->headers_out.content_length_n = size;
- 
-    //输出HTTP头
-    /* send the headers of your response */
+
     rc = ngx_http_send_header(r);
-    if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) return rc;
+    if (rc == NGX_ERROR || rc > NGX_OK || r->header_only)
+    {
+        lua_pop(lua, 1);
+        lua_pushnumber(lua, 3);
+        return rc;
+    }
 
     rc = ngx_http_output_filter(r, &out);
+    if (rc == NGX_ERROR || rc > NGX_OK || r->header_only)
+    {
+        lua_pop(lua, 1);
+        lua_pushnumber(lua, 4);
+        return rc;
+    }
 
-    lua_pop(pmainconf->lua, 1);
-
-    return rc;
+    lua_pop(lua, 1);
+    return NGX_OK;
 }
 
-// TODO: cache
-// TODO: 传参
+ngx_int_t ngx_lua_content_handler(ngx_http_request_t* r)
+{
+    ngx_lua_main_conf_t* pmainconf;
+    ngx_lua_loc_conf_t*  plocconf;
+    ngx_int_t rc;
+    printf("ngx_lua_content_handler\n");
+
+    pmainconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
+    plocconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
+
+    ngx_lua_module_parse_args(r->pool, r->args.data, r->args.len, pmainconf->lua);
+
+    if (plocconf->lua_content_code.len)
+    {
+        if (ngx_lua_content_call_code(r, pmainconf->lua, plocconf->lua_content_code.data, plocconf->lua_content_code.len) == NGX_OK)
+        {
+            rc = ngx_lua_content_send(r, pmainconf->lua);
+            if (rc != NGX_OK) // TODO: error log
+            {
+                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            }
+        }
+        else // TODO: error log
+        {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+    return NGX_OK;
+}
+
 ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
 {
+    //ngx_lua_main_conf_t* pmainconf;
+    ngx_lua_loc_conf_t*  plocconf;
+    //ngx_int_t rc;
     printf("ngx_lua_content_by_file_handler\n");
+
+    //pmainconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
+    plocconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
+
+    if (plocconf->lua_content_file.len)
+    {
+        if (access((const char*)plocconf->lua_content_file.data, 0) == -1) return NGX_HTTP_NOT_FOUND;
+    }
 
     return NGX_OK;
 }

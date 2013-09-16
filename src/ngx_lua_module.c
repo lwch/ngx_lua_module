@@ -2,6 +2,10 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
+#include "../core/hash_table.h"
+#include "../core/code_cache.h"
+
+#include "ngx_lua_module_util.h"
 #include "ngx_lua_init.h"
 #include "ngx_lua_content.h"
 #include "ngx_lua_code.h"
@@ -47,7 +51,7 @@ ngx_command_t ngx_lua_commands[] = {
         NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
         ngx_lua_content_readconf,
         NGX_HTTP_LOC_CONF_OFFSET,
-        offsetof(ngx_lua_loc_conf_t, lua_content_code),
+        offsetof(ngx_lua_loc_conf_t, lua_content_file),
         NULL
     },
     {
@@ -107,6 +111,9 @@ void* ngx_lua_create_loc_conf(ngx_conf_t* cf)
     if (conf == NULL) return NGX_CONF_ERROR;
 
     ngx_str_null(&conf->lua_content_code);
+    ngx_str_null(&conf->lua_content_file);
+    ngx_str_null(&conf->lua_error_code);
+    ngx_str_null(&conf->lua_error_file);
     return conf;
 }
 
@@ -129,12 +136,15 @@ char* ngx_lua_merge_loc_conf(ngx_conf_t* cf, void* parent, void* child)
 ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
 {
     ngx_lua_main_conf_t* pconf;
+    ngx_lua_hash_table_functor functor;
     printf("ngx_lua_init_process\n");
 
     pconf = ngx_http_cycle_get_module_main_conf(cycle, ngx_lua_module);
     pconf->lua = luaL_newstate();
 
     luaL_openlibs(pconf->lua);
+
+    ngx_lua_module_init(pconf->lua);
 
     if (pconf->lua_init_code.len)
     {
@@ -151,6 +161,17 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
             return NGX_ERROR;
         }
     }
+
+    functor.hash = ngx_lua_code_cache_node_hash;
+    functor.free = ngx_lua_code_cache_node_free;
+    functor.compare = ngx_lua_code_cache_node_compare;
+    pconf->cache_table = ngx_lua_core_hash_table_new(default_buckets_count, default_buckets_max_length, functor);
+    if (pconf->cache_table == NULL)
+    {
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "Out of memory");
+        return NGX_ERROR;
+    }
+
     return NGX_OK;
 }
 

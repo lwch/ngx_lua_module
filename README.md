@@ -1,6 +1,10 @@
 # ngx_lua_module
 
-## build status
+## Description
+
+each worker process has it's own lua_State object in ngx_lua_main_conf_t structure\.
+
+## Build Status
 [![Build Status](https://travis-ci.org/lwch/ngx_lua_module.png)](https://travis-ci.org/lwch/ngx_lua_module)
 
 ## Directives
@@ -47,7 +51,7 @@ When there is a syntax error or any other error it will write the log and **stil
 
 **phase:** content
 
-Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error)**(high priority)** or [lua_error_by_file](#lua_error_by_file)\.
+Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error) **(high priority)** or [lua_error_by_file](#lua_error_by_file)\.
 
 ### lua_content_by_file
 
@@ -59,7 +63,7 @@ Each script **must** return a string or nil\. When there is a syntax error or an
 
 **phase:** content
 
-Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error)**(high priority)** or [lua_error_by_file](#lua_error_by_file)\. When there is a file not found error it will return 404 error\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
+Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error) **(high priority)** or [lua_error_by_file](#lua_error_by_file)\. When there is a file not found error it will return 404 error\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
 
 ### lua_error
 
@@ -94,6 +98,14 @@ When there is a syntax error or any other error it will write the log and return
 **context:** lua_content\*, lua_error\*
 
 table for request
+
+### ngx.err.msg
+
+**syntax:** msg = ngx.err.msg
+
+**context:** lua_error\*
+
+error message
 
 ### ngx.log
 
