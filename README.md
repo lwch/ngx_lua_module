@@ -85,7 +85,7 @@ When there is a syntax error or any other error with script it will write the lo
 
 **context:** main
 
-**phase:** content
+**phase:** on error
 
 When there is a syntax error or any other error it will write the log and return nothing for client\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
 
