@@ -15,7 +15,7 @@ each worker process has it's own lua_State object in ngx_lua_main_conf_t structu
 
 **default:** lua_code_cache on
 
-**context:** main, server, location
+**context:** main
 
 ### lua_init
 
@@ -71,7 +71,7 @@ Each script **must** return a string or nil\. When there is a syntax error or an
 
 **default:** nil
 
-**context:** server
+**context:** main
 
 **phase:** on error
 
@@ -83,7 +83,7 @@ When there is a syntax error or any other error with script it will write the lo
 
 **default:** nil
 
-**context:** server
+**context:** main
 
 **phase:** content
 

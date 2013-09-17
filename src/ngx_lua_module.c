@@ -6,6 +6,7 @@
 #include "../core/code_cache.h"
 
 #include "ngx_lua_module_util.h"
+#include "ngx_lua_error.h"
 #include "ngx_lua_init.h"
 #include "ngx_lua_content.h"
 #include "ngx_lua_code.h"
@@ -56,10 +57,26 @@ ngx_command_t ngx_lua_commands[] = {
     },
     {
         ngx_string("lua_code_cache"),
-        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_FLAG,
+        NGX_HTTP_MAIN_CONF | NGX_CONF_FLAG,
         ngx_lua_code_cache_readconf,
         NGX_HTTP_LOC_CONF_OFFSET,
         offsetof(ngx_lua_loc_conf_t, enable_code_cache),
+        NULL
+    },
+    {
+        ngx_string("lua_error"),
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_lua_error_readconf,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(ngx_lua_main_conf_t, lua_error_code),
+        NULL
+    },
+    {
+        ngx_string("lua_error_by_file"),
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_lua_error_readconf,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(ngx_lua_main_conf_t, lua_error_file),
         NULL
     },
     ngx_null_command
@@ -112,8 +129,6 @@ void* ngx_lua_create_loc_conf(ngx_conf_t* cf)
 
     ngx_str_null(&conf->lua_content_code);
     ngx_str_null(&conf->lua_content_file);
-    ngx_str_null(&conf->lua_error_code);
-    ngx_str_null(&conf->lua_error_file);
     return conf;
 }
 

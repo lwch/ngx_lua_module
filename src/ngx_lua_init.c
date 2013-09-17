@@ -43,9 +43,10 @@ char* ngx_lua_init_readconf(ngx_conf_t* cf, ngx_command_t* cmd, void* conf)
 
         while (size)
         {
-            readen = fread(tmp, size, sizeof(u_char), fp);
+            readen = fread(tmp, sizeof(u_char), size, fp);
             if (readen == 0)
             {
+                fclose(fp);
                 ngx_conf_log_error(NGX_LOG_ERR, cf, 0, "IO error");
                 return NGX_CONF_ERROR;
             }

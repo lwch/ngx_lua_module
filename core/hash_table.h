@@ -38,6 +38,7 @@ typedef struct
 extern ngx_lua_hash_table_t* ngx_lua_core_hash_table_new(size_t buckets_count, size_t max_length, ngx_lua_hash_table_functor functor);
 extern void ngx_lua_core_hash_table_free(ngx_lua_hash_table_t* t);
 extern int ngx_lua_core_hash_table_insert(ngx_lua_hash_table_t* t, void* data);
+extern int ngx_lua_core_hash_table_insert_notfind(ngx_lua_hash_table_t* t, void* data);
 
 // lookup by key of data
 extern void* ngx_lua_core_hash_table_lookup(ngx_lua_hash_table_t* t, void* data);

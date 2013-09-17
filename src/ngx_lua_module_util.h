@@ -23,5 +23,8 @@ extern void ngx_lua_module_get_err(struct lua_State* lua);
 // parse args into ngx.req.args with table
 extern void ngx_lua_module_parse_args(ngx_pool_t* pool, u_char* buf, size_t size, struct lua_State* lua);
 
+// write error content into ngx.err.msg when error message in stack top
+extern void ngx_lua_module_write_error(struct lua_State* lua);
+
 #endif
 
