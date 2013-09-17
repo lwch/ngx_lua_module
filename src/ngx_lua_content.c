@@ -19,12 +19,16 @@ ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua)
     ngx_lua_module_write_error(lua);
     if (pconf->lua_error_code.len)
     {
-        if (luaL_loadbuffer(lua, (const char*)pconf->lua_error_code.data, pconf->lua_error_code.len, "@lua_error")) // TODO: error log
+        if (luaL_loadbuffer(lua, (const char*)pconf->lua_error_code.data, pconf->lua_error_code.len, "@lua_error"))
         {
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_call_error(luaL_loadbuffer): %s", lua_tostring(lua, -1));
+            lua_pop(lua, 1);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
-        if (lua_pcall(lua, 0, 1, 0)) // TODO: error log
+        if (lua_pcall(lua, 0, 1, 0))
         {
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_call_error(lua_pcall): %s", lua_tostring(pconf->lua, -1));
+            lua_pop(lua, 1);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
         return NGX_OK;
@@ -38,13 +42,15 @@ ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua)
 
         ngx_str_null(&strPath);
 
-        if (access((const char*)pconf->lua_error_file.data, 0) == -1) // TODO: error log
+        if (access((const char*)pconf->lua_error_file.data, 0) == -1)
         {
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_call_error: %s doesn't exist", pconf->lua_error_file.data);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
-        if (realpath((const char*)pconf->lua_error_file.data, path) == NULL) // TODO: error log
+        if (realpath((const char*)pconf->lua_error_file.data, path) == NULL)
         {
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_call_error: can't get realpath with %s", pconf->lua_error_file.data);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -54,28 +60,31 @@ ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua)
         if (ptr == NULL) // doesn't exists
         {
             code = ngx_lua_code_cache_load(strPath);
-            if (code.data == NULL) // TODO: error log
-            {
-                return NGX_HTTP_INTERNAL_SERVER_ERROR;
-            }
+            if (code.data == NULL) return NGX_HTTP_INTERNAL_SERVER_ERROR;
             ptr = ngx_lua_code_cache_node_new(strPath, code);
             ngx_pfree(ngx_cycle->pool, code.data);
             ngx_lua_core_hash_table_insert_notfind(pconf->cache_table, ptr);
         }
 
-        if (luaL_loadbuffer(lua, (const char*)ptr->code.data, ptr->code.len, "@lua_error")) // TODO: error log
+        if (luaL_loadbuffer(lua, (const char*)ptr->code.data, ptr->code.len, "@lua_error"))
         {
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_call_error(luaL_loadbuffer): %s", lua_tostring(lua, -1));
+            lua_pop(lua, 1);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
-        if (lua_pcall(lua, 0, 1, 0)) // TODO: error log
+        if (lua_pcall(lua, 0, 1, 0))
         {
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_call_error(lua_pcall): %s", lua_tostring(lua, -1));
+            lua_pop(lua, 1);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
         return NGX_OK;
     }
 
-    // TODO: no file log
-    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    // undefined lua_error or lua_error_by_file return nil
+    lua_pushnil(lua);
+    ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0, "undefined lua_error or lua_error_by_file default return nil for client");
+    return NGX_OK;
 }
 
 ngx_int_t ngx_lua_content_call_code(ngx_http_request_t* r, lua_State* lua, u_char* code, size_t len)
@@ -101,7 +110,7 @@ ngx_int_t ngx_lua_content_send(ngx_http_request_t* r, lua_State* lua)
     if (b == NULL)
     {
         lua_pop(lua, 1);
-        lua_pushnumber(lua, 1);
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_send: Out of memory");
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
     out.buf = b;
@@ -125,9 +134,9 @@ ngx_int_t ngx_lua_content_send(ngx_http_request_t* r, lua_State* lua)
     }
     else
     {
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_send: returned unsupported type(%s)", lua_typename(lua, -1));
         lua_pop(lua, 1);
-        lua_pushnumber(lua, 2);
-        return NGX_ERROR;
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
     r->headers_out.status = NGX_HTTP_OK;
@@ -136,16 +145,16 @@ ngx_int_t ngx_lua_content_send(ngx_http_request_t* r, lua_State* lua)
     rc = ngx_http_send_header(r);
     if (rc == NGX_ERROR || rc > NGX_OK || r->header_only)
     {
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_send: send header error");
         lua_pop(lua, 1);
-        lua_pushnumber(lua, 3);
         return rc;
     }
 
     rc = ngx_http_output_filter(r, &out);
     if (rc == NGX_ERROR || rc > NGX_OK || r->header_only)
     {
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_send: send content error");
         lua_pop(lua, 1);
-        lua_pushnumber(lua, 4);
         return rc;
     }
 
@@ -169,22 +178,18 @@ ngx_int_t ngx_lua_content_handler(ngx_http_request_t* r)
 
     if (plocconf->lua_content_code.len)
     {
-        if (ngx_lua_content_call_code(r, pmainconf->lua, plocconf->lua_content_code.data, plocconf->lua_content_code.len) == NGX_OK)
+        rc = ngx_lua_content_call_code(r, pmainconf->lua, plocconf->lua_content_code.data, plocconf->lua_content_code.len);
+        if (rc == NGX_OK)
         {
             rc = ngx_lua_content_send(r, pmainconf->lua);
-            if (rc != NGX_OK) // TODO: error log
-            {
-                return NGX_HTTP_INTERNAL_SERVER_ERROR;
-            }
+            if (rc != NGX_OK) return rc;
         }
-        else // TODO: error log
-        {
-            return NGX_HTTP_INTERNAL_SERVER_ERROR;
-        }
+        else return rc;
     }
 
-    if (top != lua_gettop(pmainconf->lua)) // TODO: error log
+    if (top != lua_gettop(pmainconf->lua))
     {
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_handler: error lua stack");
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
@@ -216,8 +221,9 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
 
         if (access((const char*)plocconf->lua_content_file.data, 0) == -1) return NGX_HTTP_NOT_FOUND;
 
-        if (realpath((const char*)plocconf->lua_content_file.data, path) == NULL) // TODO: error log
+        if (realpath((const char*)plocconf->lua_content_file.data, path) == NULL)
         {
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_by_file_handler: can't get realpath with %s", plocconf->lua_content_file.data);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -227,31 +233,24 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
         if (ptr == NULL) // doesn't exists
         {
             code = ngx_lua_code_cache_load(strPath);
-            if (code.data == NULL) // TODO: error log
-            {
-                return NGX_HTTP_INTERNAL_SERVER_ERROR;
-            }
+            if (code.data == NULL) return NGX_HTTP_INTERNAL_SERVER_ERROR;
             ptr = ngx_lua_code_cache_node_new(strPath, code);
             ngx_pfree(ngx_cycle->pool, code.data);
             ngx_lua_core_hash_table_insert_notfind(pmainconf->cache_table, ptr);
         }
 
-        if (ngx_lua_content_call_code(r, pmainconf->lua, ptr->code.data, ptr->code.len) == NGX_OK)
+        rc = ngx_lua_content_call_code(r, pmainconf->lua, ptr->code.data, ptr->code.len);
+        if (rc == NGX_OK)
         {
             rc = ngx_lua_content_send(r, pmainconf->lua);
-            if (rc != NGX_OK) // TODO: error log
-            {
-                return NGX_HTTP_INTERNAL_SERVER_ERROR;
-            }
+            if (rc != NGX_OK) return rc;
         }
-        else // TODO: error log
-        {
-            return NGX_HTTP_INTERNAL_SERVER_ERROR;
-        }
+        else return rc;
     }
 
-    if (top != lua_gettop(pmainconf->lua)) // TODO: error log
+    if (top != lua_gettop(pmainconf->lua))
     {
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_by_file_handler: error lua stack");
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 

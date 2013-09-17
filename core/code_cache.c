@@ -99,8 +99,9 @@ ngx_str_t ngx_lua_code_cache_load(ngx_str_t path)
     ngx_str_null(&code);
 
     fp = fopen((const char*)path.data, "rb");
-    if (fp == NULL) // TODO: error log
+    if (fp == NULL)
     {
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_code_cache_load: can't open file %s", path.data);
         return code;
     }
     fseek(fp, 0, SEEK_END);
@@ -108,8 +109,9 @@ ngx_str_t ngx_lua_code_cache_load(ngx_str_t path)
     fseek(fp, 0, SEEK_SET);
 
     tmp = code.data = ngx_palloc(ngx_cycle->pool, size);
-    if (code.data == NULL) // TODO: error log
+    if (code.data == NULL)
     {
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_code_cache_load: out of memory");
         return code;
     }
     code.len = size;
@@ -117,8 +119,9 @@ ngx_str_t ngx_lua_code_cache_load(ngx_str_t path)
     while (size)
     {
         readen = fread(tmp, sizeof(u_char), size, fp);
-        if (readen == 0) // TODO: error log
+        if (readen == 0)
         {
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_code_cache_load: IO error");
             code.len = 0;
             ngx_pfree(ngx_cycle->pool, code.data);
             code.data = NULL;
