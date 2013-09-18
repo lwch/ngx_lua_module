@@ -174,6 +174,8 @@ ngx_int_t ngx_lua_content_handler(ngx_http_request_t* r)
     plocconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
     top = lua_gettop(pmainconf->lua);
 
+    ngx_lua_module_set_req_obj(pmainconf->lua, r);
+
     ngx_lua_module_parse_args(r->pool, r->args.data, r->args.len, pmainconf->lua);
 
     if (plocconf->lua_content_code.len)
@@ -207,6 +209,8 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
     pmainconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
     plocconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
     top = lua_gettop(pmainconf->lua);
+
+    ngx_lua_module_set_req_obj(pmainconf->lua, r);
 
     ngx_lua_module_parse_args(r->pool, r->args.data, r->args.len, pmainconf->lua);
 

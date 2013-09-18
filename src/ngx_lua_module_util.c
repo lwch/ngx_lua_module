@@ -2,6 +2,9 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
+#include "ngx_lua_log.h"
+#include "ngx_lua_variable.h"
+
 #include "ngx_lua_module.h"
 #include "ngx_lua_module_util.h"
 
@@ -12,8 +15,16 @@ void ngx_lua_module_init(lua_State* lua)
     ngx_lua_module_get_req(lua);
     lua_pop(lua, 2); // ngx and ngx.req
 
+    ngx_lua_get_var(lua);
+    lua_pop(lua, 2); // ngx and ngx.req
+
     ngx_lua_module_get_err(lua);
-    lua_pop(lua, 2); // ngx and ngx.err
+    lua_pop(lua, 1); // ngx.err
+
+    lua_pushstring(lua, "log");
+    lua_pushcfunction(lua, ngx_lua_log);
+    lua_settable(lua, -3);
+    lua_pop(lua, 1); // ngx
 }
 
 size_t ngx_lua_module_unescape_uri(u_char* dst, u_char* src, size_t size)
@@ -104,6 +115,7 @@ void ngx_lua_module_get_req(lua_State* lua)
     lua_getglobal(lua, "ngx");
     if (lua_isnil(lua, -1))
     {
+        lua_pop(lua, 1);
         lua_newtable(lua);
         lua_setglobal(lua, "ngx");
         lua_getglobal(lua, "ngx");
@@ -121,12 +133,31 @@ void ngx_lua_module_get_err(lua_State* lua)
     lua_getglobal(lua, "ngx");
     if (lua_isnil(lua, -1))
     {
+        lua_pop(lua, -1);
         lua_newtable(lua);
         lua_setglobal(lua, "ngx");
         lua_getglobal(lua, "ngx");
     }
 
     lua_pushstring(lua, "err");
+    lua_newtable(lua);
+    lua_settable(lua, -3);
+    lua_pushstring(lua, "err");
+    lua_gettable(lua, -2);
+}
+
+void ngx_lua_module_get_var(lua_State* lua)
+{
+    lua_getglobal(lua, "ngx");
+    if (lua_isnil(lua, -1))
+    {
+        lua_pop(lua, -1);
+        lua_newtable(lua);
+        lua_setglobal(lua, "ngx");
+        lua_getglobal(lua, "ngx");
+    }
+
+    lua_pushstring(lua, "var");
     lua_newtable(lua);
     lua_settable(lua, -3);
     lua_pushstring(lua, "err");
@@ -211,5 +242,42 @@ void ngx_lua_module_write_error(struct lua_State* lua)
     lua_settable(lua, -3);
 
     lua_pop(lua, 3); // msg, ngx and ngx.err
+}
+
+void ngx_lua_module_set_req_obj(struct lua_State* lua, ngx_http_request_t* r)
+{
+    lua_getglobal(lua, "ngx");
+    if (lua_isnil(lua, -1))
+    {
+        lua_pop(lua, -1);
+        lua_newtable(lua);
+        lua_setglobal(lua, "ngx");
+        lua_getglobal(lua, "ngx");
+    }
+
+    lua_pushstring(lua, "__req__");
+    lua_pushlightuserdata(lua, r);
+    lua_settable(lua, -3);
+    lua_pop(lua, 1);
+}
+
+ngx_http_request_t* ngx_lua_module_get_req_obj(struct lua_State* lua)
+{
+    ngx_http_request_t* r;
+
+    lua_getglobal(lua, "ngx");
+    if (lua_isnil(lua, -1))
+    {
+        lua_pop(lua, 1);
+        luaL_error(lua, "have no ngx object");
+        return NULL;
+    }
+
+    lua_pushstring(lua, "__req__");
+    lua_gettable(lua, -2);
+    r = lua_touserdata(lua, -1);
+    lua_pop(lua, 2);
+
+    return r;
 }
 

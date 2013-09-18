@@ -158,7 +158,6 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
     pconf->lua = luaL_newstate();
 
     luaL_openlibs(pconf->lua);
-
     ngx_lua_module_init(pconf->lua);
 
     if (pconf->lua_init_code.len)
