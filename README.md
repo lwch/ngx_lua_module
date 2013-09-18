@@ -121,13 +121,5 @@ error message
 
 VARIABLE for nginx\.
 
-#### ngx.var.args
-
-**syntax:** ngx.var.args
-
-**content:** lua_content\*, lua_error\*
-
-ngx.var.args is pass from [lua_content](#lua_content), [lua_content_by_file](#lua_content_by_file), [lua_error](#lua_error) or [lua_error_by_file](#lua_error_by_file) in array\.
-
 ## TODO
 
