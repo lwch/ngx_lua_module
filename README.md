@@ -93,7 +93,7 @@ When there is a syntax error or any other error it will write the log and return
 
 ### ngx.req.args
 
-**syntax:** args = ngx.req.args
+**syntax:** ngx.req.args
 
 **context:** lua_content\*, lua_error\*
 
@@ -101,7 +101,7 @@ table for request
 
 ### ngx.err.msg
 
-**syntax:** msg = ngx.err.msg
+**syntax:** ngx.err.msg
 
 **context:** lua_error\*
 
@@ -112,6 +112,22 @@ error message
 **syntax:** ngx.log(log_level, ...)
 
 **context:** lua_content\*, lua_error\*
+
+### ngx.var.VARIABLE
+
+**syntax:** ngx.var.VAR_NAME
+
+**content:** lua_content\*, lua_error\*
+
+VARIABLE for nginx\.
+
+#### ngx.var.args
+
+**syntax:** ngx.var.args
+
+**content:** lua_content\*, lua_error\*
+
+ngx.var.args is pass from [lua_content](#lua_content), [lua_content_by_file](#lua_content_by_file), [lua_error](#lua_error) or [lua_error_by_file](#lua_error_by_file) in array\.
 
 ## TODO
 
