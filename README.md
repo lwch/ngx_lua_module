@@ -115,11 +115,19 @@ error message
 
 ### ngx.var.VARIABLE
 
-**syntax:** ngx.var.VAR_NAME
+**syntax:** ngx.var.VAR_NAME**(readonly)**
 
 **content:** lua_content\*, lua_error\*
 
 VARIABLE for nginx\.
+
+### ngx.__req__
+
+**syntax:** ngx.\_\_req\_\_
+
+**content:** lua_content\*, lua_error\*
+
+ngx_http_request_t structure\.
 
 ## TODO
 
