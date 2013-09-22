@@ -42,7 +42,6 @@ int ngx_lua_var_get(lua_State* lua)
     return 1;
 }
 
-// unused
 int ngx_lua_var_set(lua_State* lua)
 {
     ngx_http_request_t* r;
@@ -182,10 +181,9 @@ void ngx_lua_get_var(lua_State* lua)
     lua_pushstring(lua, "__index");
     lua_pushcfunction(lua, ngx_lua_var_get);
     lua_settable(lua, -3);
-    // unused
-    /*lua_pushstring(lua, "__newindex");
+    lua_pushstring(lua, "__newindex");
     lua_pushcfunction(lua, ngx_lua_var_set);
-    lua_settable(lua, -3);*/
+    lua_settable(lua, -3);
     lua_setmetatable(lua, -2);
 }
 

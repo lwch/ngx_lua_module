@@ -63,28 +63,37 @@ ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua)
         {
             code = ngx_lua_code_cache_load(strPath);
             if (code.data == NULL) return NGX_HTTP_INTERNAL_SERVER_ERROR;
-            ptr = ngx_lua_code_cache_node_new(strPath, code);
-            if (ptr == NULL)
+            if (pconf->enable_code_cache)
             {
-                ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "out of memory");
-                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                dbg("code uncached");
+                ptr = ngx_lua_code_cache_node_new(strPath, code);
+                if (ptr == NULL)
+                {
+                    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "out of memory");
+                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                }
+                ngx_pfree(ngx_cycle->pool, code.data);
+                code = ptr->code;
+                ngx_lua_core_hash_table_insert_notfind(pconf->cache_table, ptr);
             }
-            ngx_pfree(ngx_cycle->pool, code.data);
-            ngx_lua_core_hash_table_insert_notfind(pconf->cache_table, ptr);
         }
+        else code = ptr->code;
 
-        if (luaL_loadbuffer(lua, (const char*)ptr->code.data, ptr->code.len, "@lua_error"))
+        if (luaL_loadbuffer(lua, (const char*)code.data, code.len, "@lua_error"))
         {
+            if (!pconf->enable_code_cache) ngx_pfree(ngx_cycle->pool, code.data);
             ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_call_error(luaL_loadbuffer): %s", lua_tostring(lua, -1));
             lua_pop(lua, 1);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
         if (lua_pcall(lua, 0, 1, 0))
         {
+            if (!pconf->enable_code_cache) ngx_pfree(ngx_cycle->pool, code.data);
             ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_call_error(lua_pcall): %s", lua_tostring(lua, -1));
             lua_pop(lua, 1);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
+        if (!pconf->enable_code_cache) ngx_pfree(ngx_cycle->pool, code.data);
         return NGX_OK;
     }
 
@@ -245,17 +254,24 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
         {
             code = ngx_lua_code_cache_load(strPath);
             if (code.data == NULL) return NGX_HTTP_INTERNAL_SERVER_ERROR;
-            ptr = ngx_lua_code_cache_node_new(strPath, code);
-            if (ptr == NULL)
+            if (pmainconf->enable_code_cache)
             {
-                ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "out of memory");
-                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                dbg("code uncached");
+                ptr = ngx_lua_code_cache_node_new(strPath, code);
+                if (ptr == NULL)
+                {
+                    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "out of memory");
+                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                }
+                ngx_pfree(ngx_cycle->pool, code.data);
+                code = ptr->code;
+                ngx_lua_core_hash_table_insert_notfind(pmainconf->cache_table, ptr);
             }
-            ngx_pfree(ngx_cycle->pool, code.data);
-            ngx_lua_core_hash_table_insert_notfind(pmainconf->cache_table, ptr);
         }
+        else code = ptr->code;
 
-        rc = ngx_lua_content_call_code(r, pmainconf->lua, ptr->code.data, ptr->code.len);
+        rc = ngx_lua_content_call_code(r, pmainconf->lua, code.data, code.len);
+        ngx_pfree(ngx_cycle->pool, code.data);
         if (rc == NGX_OK)
         {
             rc = ngx_lua_content_send(r, pmainconf->lua);

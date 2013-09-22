@@ -17,6 +17,7 @@
 
 // http module
 void* ngx_lua_create_main_conf(ngx_conf_t* cf);
+char* ngx_lua_init_main_conf(ngx_conf_t* cf, void* conf);
 void* ngx_lua_create_loc_conf(ngx_conf_t* cf);
 char* ngx_lua_merge_loc_conf(ngx_conf_t* cf, void* parent, void* child);
 
@@ -25,6 +26,14 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle);
 void ngx_lua_exit_process(ngx_cycle_t* cycle);
 
 ngx_command_t ngx_lua_commands[] = {
+    {
+        ngx_string("lua_code_cache"),
+        NGX_HTTP_MAIN_CONF | NGX_CONF_FLAG,
+        ngx_lua_code_cache_readconf,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(ngx_lua_main_conf_t, enable_code_cache),
+        NULL
+    },
     {
         ngx_string("lua_init"),
         NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
@@ -58,14 +67,6 @@ ngx_command_t ngx_lua_commands[] = {
         NULL
     },
     {
-        ngx_string("lua_code_cache"),
-        NGX_HTTP_MAIN_CONF | NGX_CONF_FLAG,
-        ngx_lua_code_cache_readconf,
-        NGX_HTTP_LOC_CONF_OFFSET,
-        offsetof(ngx_lua_loc_conf_t, enable_code_cache),
-        NULL
-    },
-    {
         ngx_string("lua_error"),
         NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
         ngx_lua_error_readconf,
@@ -88,7 +89,7 @@ ngx_http_module_t ngx_lua_module_ctx = {
     NULL,                     // pre configuration
     NULL,                     // post configuration
     ngx_lua_create_main_conf, // create main conf
-    NULL,                     // init main conf
+    ngx_lua_init_main_conf,   // init main conf
     NULL,                     // create srv conf
     NULL,                     // merge srv conf
     ngx_lua_create_loc_conf,  // create loc conf
@@ -122,9 +123,20 @@ void* ngx_lua_create_main_conf(ngx_conf_t* cf)
     ngx_str_null(&pconf->lua_init_file);
     ngx_str_null(&pconf->lua_error_code);
     ngx_str_null(&pconf->lua_error_file);
+    pconf->enable_code_cache = NGX_CONF_UNSET_UINT;
     pconf->cache_table = NULL;
     pconf->lua = NULL;
     return pconf;
+}
+
+char* ngx_lua_init_main_conf(ngx_conf_t* cf, void* conf)
+{
+    ngx_lua_main_conf_t* pconf = conf;
+    dbg("ngx_lua_init_main_conf\n");
+
+    if (pconf->enable_code_cache == (ngx_flag_t)NGX_CONF_UNSET_UINT) pconf->enable_code_cache = 1;
+
+    return NGX_CONF_OK;
 }
 
 void* ngx_lua_create_loc_conf(ngx_conf_t* cf)
@@ -142,16 +154,14 @@ void* ngx_lua_create_loc_conf(ngx_conf_t* cf)
 
 char* ngx_lua_merge_loc_conf(ngx_conf_t* cf, void* parent, void* child)
 {
-    ngx_lua_loc_conf_t* prev = parent;
-    ngx_lua_loc_conf_t* conf = child;
+    /*ngx_lua_loc_conf_t* prev = parent;
+    ngx_lua_loc_conf_t* conf = child;*/
     dbg("ngx_lua_merge_loc_conf\n");
 
     /*if (conf->lua_content_code.len == 0)
     {
         conf->lua_content_code = prev->lua_content_code;
     }*/
-
-    ngx_conf_merge_value(conf->enable_code_cache, prev->enable_code_cache, 1);
 
     return NGX_CONF_OK;
 }
@@ -195,7 +205,7 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
     }
     else if (pconf->lua_init_file.len)
     {
-        code_cache_node_t* ptr;
+        //code_cache_node_t* ptr;
         char path[PATH_MAX];
         ngx_str_t strPath;
         ngx_str_t code;
@@ -210,22 +220,10 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
 
         strPath.data = (u_char*)path;
         strPath.len = strlen(path);
-        ptr = ngx_lua_code_cache_key_exists(pconf->cache_table, strPath);
-        if (ptr == NULL) // doesn't exists
-        {
-            code = ngx_lua_code_cache_load(strPath);
-            if (code.data == NULL) return NGX_HTTP_INTERNAL_SERVER_ERROR;
-            ptr = ngx_lua_code_cache_node_new(strPath, code);
-            if (ptr == NULL)
-            {
-                ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "out of memory");
-                return NGX_HTTP_INTERNAL_SERVER_ERROR;
-            }
-            ngx_pfree(ngx_cycle->pool, code.data);
-            ngx_lua_core_hash_table_insert_notfind(pconf->cache_table, ptr);
-        }
+        code = ngx_lua_code_cache_load(strPath);
+        if (code.data == NULL) return NGX_HTTP_INTERNAL_SERVER_ERROR;
 
-        if (luaL_loadbuffer(pconf->lua, (const char*)ptr->code.data, ptr->code.len, "@lua_init_by_file"))
+        if (luaL_loadbuffer(pconf->lua, (const char*)code.data, code.len, "@lua_init_by_file"))
         {
             ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: luaL_loadbuffer error");
             ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: %s", lua_tostring(pconf->lua, -1));

@@ -4,7 +4,7 @@
 
 size_t ngx_lua_code_cache_core_hash(ngx_str_t key)
 {
-    #if __i386__
+#if __i386__
     size_t offset_basis = 2166136261U;
     size_t prime        = 16777619U;
 #else // __amd64__

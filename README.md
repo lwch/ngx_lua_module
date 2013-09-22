@@ -117,7 +117,7 @@ The log_level from [log_level](https://github.com/nginx/nginx/blob/master/src/co
 
 ### ngx.var.VARIABLE
 
-**syntax:** ngx.var.VAR_NAME **(readonly)**
+**syntax:** ngx.var.VAR_NAME
 
 **content:** lua_content\*, lua_error\*
 
