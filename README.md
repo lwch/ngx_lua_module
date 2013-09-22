@@ -97,7 +97,7 @@ When there is a syntax error or any other error it will write the log and return
 
 **context:** lua_content\*, lua_error\*
 
-table for request
+Table for request arguments\.
 
 ### ngx.err.msg
 
@@ -105,13 +105,15 @@ table for request
 
 **context:** lua_error\*
 
-error message
+Error message\.
 
 ### ngx.log
 
 **syntax:** ngx.log(log_level, ...)
 
 **context:** lua_content\*, lua_error\*
+
+The log_level from [log_level](https://github.com/nginx/nginx/blob/master/src/core/ngx_log.h)\.
 
 ### ngx.var.VARIABLE
 
