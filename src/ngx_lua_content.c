@@ -2,6 +2,8 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
+#include "ngx_lua_debug.h"
+
 #include "../core/code_cache.h"
 #include "../core/hash_table.h"
 
@@ -173,7 +175,7 @@ ngx_int_t ngx_lua_content_handler(ngx_http_request_t* r)
     ngx_lua_loc_conf_t*  plocconf;
     ngx_int_t rc;
     int top;
-    printf("ngx_lua_content_handler\n");
+    dbg("ngx_lua_content_handler\n");
 
     pmainconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
     plocconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
@@ -209,7 +211,7 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
     ngx_lua_loc_conf_t*  plocconf;
     ngx_int_t rc;
     int top;
-    printf("ngx_lua_content_by_file_handler\n");
+    dbg("ngx_lua_content_by_file_handler\n");
 
     pmainconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
     plocconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
@@ -274,7 +276,7 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
 char* ngx_lua_content_readconf(ngx_conf_t* cf, ngx_command_t* cmd, void* conf)
 {
     ngx_http_core_loc_conf_t* pconf;
-    printf("ngx_lua_content_readconf\n");
+    dbg("ngx_lua_content_readconf\n");
 
     pconf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
     if (ngx_strcmp(cmd->name.data, "lua_content") == 0) pconf->handler = ngx_lua_content_handler;

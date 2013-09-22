@@ -5,6 +5,8 @@
 #include "../core/hash_table.h"
 #include "../core/code_cache.h"
 
+#include "ngx_lua_debug.h"
+
 #include "ngx_lua_module_util.h"
 #include "ngx_lua_error.h"
 #include "ngx_lua_init.h"
@@ -111,7 +113,7 @@ ngx_module_t ngx_lua_module = {
 void* ngx_lua_create_main_conf(ngx_conf_t* cf)
 {
     ngx_lua_main_conf_t* pconf;
-    printf("ngx_lua_create_main_conf\n");
+    dbg("ngx_lua_create_main_conf\n");
 
     pconf = ngx_pcalloc(cf->pool, sizeof(ngx_lua_main_conf_t));
     if (pconf == NULL) return NGX_CONF_ERROR;
@@ -128,7 +130,7 @@ void* ngx_lua_create_main_conf(ngx_conf_t* cf)
 void* ngx_lua_create_loc_conf(ngx_conf_t* cf)
 {
     ngx_lua_loc_conf_t* conf;
-    printf("ngx_lua_create_loc_conf\n");
+    dbg("ngx_lua_create_loc_conf\n");
     
     conf = ngx_pcalloc(cf->pool, sizeof(ngx_lua_loc_conf_t));
     if (conf == NULL) return NGX_CONF_ERROR;
@@ -142,7 +144,7 @@ char* ngx_lua_merge_loc_conf(ngx_conf_t* cf, void* parent, void* child)
 {
     ngx_lua_loc_conf_t* prev = parent;
     ngx_lua_loc_conf_t* conf = child;
-    printf("ngx_lua_merge_loc_conf\n");
+    dbg("ngx_lua_merge_loc_conf\n");
 
     /*if (conf->lua_content_code.len == 0)
     {
@@ -158,7 +160,7 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
 {
     ngx_lua_main_conf_t* pconf;
     ngx_lua_hash_table_functor functor;
-    printf("ngx_lua_init_process\n");
+    dbg("ngx_lua_init_process\n");
 
     pconf = ngx_http_cycle_get_module_main_conf(cycle, ngx_lua_module);
     pconf->lua = luaL_newstate();
@@ -243,7 +245,7 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
 void ngx_lua_exit_process(ngx_cycle_t* cycle)
 {
     ngx_lua_main_conf_t* pconf;
-    printf("ngx_lua_exit_process\n");
+    dbg("ngx_lua_exit_process\n");
 
     pconf = ngx_http_cycle_get_module_main_conf(cycle, ngx_lua_module);
     if (pconf->cache_table) ngx_lua_core_hash_table_free(pconf->cache_table);

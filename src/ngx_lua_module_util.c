@@ -2,6 +2,8 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
+#include "ngx_lua_debug.h"
+
 #include "ngx_lua_log.h"
 #include "ngx_lua_variable.h"
 
@@ -10,7 +12,7 @@
 
 void ngx_lua_module_init(lua_State* lua)
 {
-    printf("ngx_lua_module_init\n");
+    dbg("ngx_lua_module_init\n");
 
     ngx_lua_module_get_req(lua);
     lua_pop(lua, 2); // ngx and ngx.req

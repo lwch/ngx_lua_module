@@ -2,6 +2,8 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
+#include "ngx_lua_debug.h"
+
 #include "ngx_lua_module.h"
 #include "ngx_lua_init.h"
 
@@ -9,7 +11,7 @@ char* ngx_lua_init_readconf(ngx_conf_t* cf, ngx_command_t* cmd, void* conf)
 {
     ngx_lua_main_conf_t* pconf;
     ngx_str_t*           value;
-    printf("ngx_lua_init_readconf\n");
+    dbg("ngx_lua_init_readconf\n");
 
     value = cf->args->elts;
 
