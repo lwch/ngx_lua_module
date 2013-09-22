@@ -53,6 +53,7 @@ void ngx_lua_core_hash_table_free(ngx_lua_hash_table_t* t)
         }
     }
 
+    ngx_pfree(ngx_cycle->pool, t->buckets);
     ngx_pfree(ngx_cycle->pool, t->buckets_capacity);
     ngx_pfree(ngx_cycle->pool, t);
 }

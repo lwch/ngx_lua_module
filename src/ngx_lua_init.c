@@ -21,51 +21,9 @@ char* ngx_lua_init_readconf(ngx_conf_t* cf, ngx_command_t* cmd, void* conf)
 
     pconf = ngx_http_conf_get_module_main_conf(cf, ngx_lua_module);
 
-    if (ngx_strcmp(cmd->name.data, "lua_init_by_file") == 0)
-    {
-        u_char* ptr = NULL;
-        u_char* tmp = NULL;
-        FILE* fp = fopen((const char*)value[1].data, "rb");
-        long size = 0;
-        size_t readen = 0;
+    if (ngx_strcmp(cmd->name.data, "lua_init_by_file") == 0) pconf->lua_init_file = value[1];
+    else pconf->lua_init_code = value[1];
 
-        if (fp == NULL)
-        {
-            ngx_conf_log_error(NGX_LOG_ERR, cf, 0, "cannot open file %s", value[1].data);
-            return NGX_CONF_ERROR;
-        }
-
-        fseek(fp, 0, SEEK_END);
-        size = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-
-        tmp = ptr = ngx_palloc(cf->pool, size);
-
-        while (size)
-        {
-            readen = fread(tmp, sizeof(u_char), size, fp);
-            if (readen == 0)
-            {
-                fclose(fp);
-                ngx_conf_log_error(NGX_LOG_ERR, cf, 0, "IO error");
-                return NGX_CONF_ERROR;
-            }
-            else
-            {
-                tmp += readen;
-                size -= readen;
-            }
-        }
-
-        fclose(fp);
-
-        pconf->lua_init_code.len = size;
-        pconf->lua_init_code.data = ptr;
-    }
-    else
-    {
-        pconf->lua_init_code = value[1];
-    }
     return NGX_CONF_OK;
 }
 

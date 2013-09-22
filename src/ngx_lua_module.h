@@ -15,6 +15,7 @@ typedef struct {
 
 typedef struct {
     ngx_str_t             lua_init_code;
+    ngx_str_t             lua_init_file;
     ngx_str_t             lua_error_code;
     ngx_str_t             lua_error_file;
     ngx_lua_hash_table_t* cache_table;

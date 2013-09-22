@@ -186,7 +186,6 @@ void ngx_lua_module_parse_args(ngx_pool_t* pool, u_char* buf, size_t size, struc
             tmp = ngx_palloc(pool, buf - start);
             s = ngx_lua_module_unescape_uri(tmp, start, buf - start);
             lua_pushlstring(lua, (const char*)tmp, s);
-            printf("key: %s\n", tmp);
             ngx_pfree(pool, tmp);
             start = buf + 1;
         }
@@ -195,14 +194,12 @@ void ngx_lua_module_parse_args(ngx_pool_t* pool, u_char* buf, size_t size, struc
             if (start == buf) // no value
             {
                 lua_pushnil(lua);
-                printf("value: nil\n");
             }
             else
             {
                 tmp = ngx_palloc(pool, buf - start);
                 s = ngx_lua_module_unescape_uri(tmp, start, buf - start);
                 lua_pushlstring(lua, (const char*)tmp, s);
-                printf("value: %s\n", tmp);
                 ngx_pfree(pool, tmp);
             }
             lua_settable(lua, -3);
@@ -215,14 +212,12 @@ void ngx_lua_module_parse_args(ngx_pool_t* pool, u_char* buf, size_t size, struc
         if (start == buf)
         {
             lua_pushnil(lua);
-            printf("value: nil\n");
         }
         else
         {
             tmp = ngx_palloc(pool, buf - start);
             s = ngx_lua_module_unescape_uri(tmp, start, buf - start);
             lua_pushlstring(lua, (const char*)tmp, s);
-            printf("value: %s\n", tmp);
             ngx_pfree(pool, tmp);
         }
         lua_settable(lua, -3);

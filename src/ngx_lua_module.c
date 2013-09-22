@@ -116,6 +116,12 @@ void* ngx_lua_create_main_conf(ngx_conf_t* cf)
     pconf = ngx_pcalloc(cf->pool, sizeof(ngx_lua_main_conf_t));
     if (pconf == NULL) return NGX_CONF_ERROR;
 
+    ngx_str_null(&pconf->lua_init_code);
+    ngx_str_null(&pconf->lua_init_file);
+    ngx_str_null(&pconf->lua_error_code);
+    ngx_str_null(&pconf->lua_error_file);
+    pconf->cache_table = NULL;
+    pconf->lua = NULL;
     return pconf;
 }
 
@@ -160,30 +166,75 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
     luaL_openlibs(pconf->lua);
     ngx_lua_module_init(pconf->lua);
 
-    if (pconf->lua_init_code.len)
-    {
-        if (luaL_loadbuffer(pconf->lua, (const char*)pconf->lua_init_code.data, pconf->lua_init_code.len, "@lua_init"))
-        {
-            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: luaL_loadbuffer error");
-            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: %s", lua_tostring(pconf->lua, -1));
-            return NGX_ERROR;
-        }
-        if (lua_pcall(pconf->lua, 0, 0, 0))
-        {
-            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: lua_pcall error");
-            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: %s", lua_tostring(pconf->lua, -1));
-            return NGX_ERROR;
-        }
-    }
-
     functor.hash = ngx_lua_code_cache_node_hash;
     functor.free = ngx_lua_code_cache_node_free;
     functor.compare = ngx_lua_code_cache_node_compare;
     pconf->cache_table = ngx_lua_core_hash_table_new(default_buckets_count, default_buckets_max_length, functor);
     if (pconf->cache_table == NULL)
     {
-        ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "Out of memory");
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "out of memory");
         return NGX_ERROR;
+    }
+
+    if (pconf->lua_init_code.len)
+    {
+        if (luaL_loadbuffer(pconf->lua, (const char*)pconf->lua_init_code.data, pconf->lua_init_code.len, "@lua_init"))
+        {
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: luaL_loadbuffer error");
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: %s", lua_tostring(pconf->lua, -1));
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+        if (lua_pcall(pconf->lua, 0, 0, 0))
+        {
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: lua_pcall error");
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: %s", lua_tostring(pconf->lua, -1));
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+    }
+    else if (pconf->lua_init_file.len)
+    {
+        code_cache_node_t* ptr;
+        char path[PATH_MAX];
+        ngx_str_t strPath;
+        ngx_str_t code;
+
+        if (access((const char*)pconf->lua_init_file.data, 0) == -1) return NGX_ERROR;
+
+        if (realpath((const char*)pconf->lua_init_file.data, path) == NULL)
+        {
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_by_file_handler: can't get realpath with %s", pconf->lua_init_file.data);
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+
+        strPath.data = (u_char*)path;
+        strPath.len = strlen(path);
+        ptr = ngx_lua_code_cache_key_exists(pconf->cache_table, strPath);
+        if (ptr == NULL) // doesn't exists
+        {
+            code = ngx_lua_code_cache_load(strPath);
+            if (code.data == NULL) return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            ptr = ngx_lua_code_cache_node_new(strPath, code);
+            if (ptr == NULL)
+            {
+                ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "out of memory");
+                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            }
+            ngx_pfree(ngx_cycle->pool, code.data);
+            ngx_lua_core_hash_table_insert_notfind(pconf->cache_table, ptr);
+        }
+
+        if (luaL_loadbuffer(pconf->lua, (const char*)ptr->code.data, ptr->code.len, "@lua_init_by_file"))
+        {
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: luaL_loadbuffer error");
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: %s", lua_tostring(pconf->lua, -1));
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+        if (lua_pcall(pconf->lua, 0, 0, 0))
+        {
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: lua_pcall error");
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: %s", lua_tostring(pconf->lua, -1));
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
     }
 
     return NGX_OK;
@@ -195,5 +246,6 @@ void ngx_lua_exit_process(ngx_cycle_t* cycle)
     printf("ngx_lua_exit_process\n");
 
     pconf = ngx_http_cycle_get_module_main_conf(cycle, ngx_lua_module);
+    if (pconf->cache_table) ngx_lua_core_hash_table_free(pconf->cache_table);
     if (pconf->lua) lua_close(pconf->lua);
 }
