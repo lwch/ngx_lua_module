@@ -55,7 +55,7 @@ ngx_command_t ngx_lua_commands[] = {
         NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
         ngx_lua_content_readconf,
         NGX_HTTP_LOC_CONF_OFFSET,
-        offsetof(ngx_lua_loc_conf_t, lua_content_code),
+        0,
         NULL
     },
     {
@@ -63,7 +63,7 @@ ngx_command_t ngx_lua_commands[] = {
         NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
         ngx_lua_content_readconf,
         NGX_HTTP_LOC_CONF_OFFSET,
-        offsetof(ngx_lua_loc_conf_t, lua_content_file),
+        0,
         NULL
     },
     {
@@ -147,8 +147,6 @@ void* ngx_lua_create_loc_conf(ngx_conf_t* cf)
     conf = ngx_pcalloc(cf->pool, sizeof(ngx_lua_loc_conf_t));
     if (conf == NULL) return NGX_CONF_ERROR;
 
-    ngx_str_null(&conf->lua_content_code);
-    ngx_str_null(&conf->lua_content_file);
     return conf;
 }
 

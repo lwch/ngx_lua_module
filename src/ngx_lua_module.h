@@ -8,8 +8,8 @@
 #include "../core/hash_table.h"
 
 typedef struct {
-    ngx_str_t  lua_content_code;
-    ngx_str_t  lua_content_file;
+    ngx_http_complex_value_t lua_content_code;
+    ngx_http_complex_value_t lua_content_file;
 } ngx_lua_loc_conf_t;
 
 typedef struct {

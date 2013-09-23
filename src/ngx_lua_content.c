@@ -184,19 +184,25 @@ ngx_int_t ngx_lua_content_handler(ngx_http_request_t* r)
     ngx_lua_loc_conf_t*  plocconf;
     ngx_int_t rc;
     int top;
+    ngx_str_t code;
     dbg("ngx_lua_content_handler\n");
 
     pmainconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
     plocconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
+
+    if (ngx_http_complex_value(r, &plocconf->lua_content_code, &code) != NGX_OK)
+    {
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_handler: ngx_http_complex_value error");
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+
     top = lua_gettop(pmainconf->lua);
-
     ngx_lua_module_set_req_obj(pmainconf->lua, r);
-
     ngx_lua_module_parse_args(r->pool, r->args.data, r->args.len, pmainconf->lua);
 
-    if (plocconf->lua_content_code.len)
+    if (code.len)
     {
-        rc = ngx_lua_content_call_code(r, pmainconf->lua, plocconf->lua_content_code.data, plocconf->lua_content_code.len);
+        rc = ngx_lua_content_call_code(r, pmainconf->lua, code.data, code.len);
         if (rc == NGX_OK)
         {
             rc = ngx_lua_content_send(r, pmainconf->lua);
@@ -220,17 +226,23 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
     ngx_lua_loc_conf_t*  plocconf;
     ngx_int_t rc;
     int top;
+    ngx_str_t src_path;
     dbg("ngx_lua_content_by_file_handler\n");
 
     pmainconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
     plocconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
+
+    if (ngx_http_complex_value(r, &plocconf->lua_content_file, &src_path) != NGX_OK)
+    {
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_handler: ngx_http_complex_value error");
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+
     top = lua_gettop(pmainconf->lua);
-
     ngx_lua_module_set_req_obj(pmainconf->lua, r);
-
     ngx_lua_module_parse_args(r->pool, r->args.data, r->args.len, pmainconf->lua);
 
-    if (plocconf->lua_content_file.len)
+    if (src_path.len)
     {
         code_cache_node_t* ptr;
         char path[PATH_MAX];
@@ -239,11 +251,11 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
 
         ngx_str_null(&strPath);
 
-        if (access((const char*)plocconf->lua_content_file.data, 0) == -1) return NGX_HTTP_NOT_FOUND;
+        if (access((const char*)src_path.data, 0) == -1) return NGX_HTTP_NOT_FOUND;
 
-        if (realpath((const char*)plocconf->lua_content_file.data, path) == NULL)
+        if (realpath((const char*)src_path.data, path) == NULL)
         {
-            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_by_file_handler: can't get realpath with %s", plocconf->lua_content_file.data);
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_by_file_handler: can't get realpath with %s", src_path.data);
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
@@ -291,13 +303,41 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
 
 char* ngx_lua_content_readconf(ngx_conf_t* cf, ngx_command_t* cmd, void* conf)
 {
+    ngx_str_t* value;
     ngx_http_core_loc_conf_t* pconf;
+    ngx_http_compile_complex_value_t ccv;
+    ngx_lua_loc_conf_t* plocconf = conf;
     dbg("ngx_lua_content_readconf\n");
 
+    value = cf->args->elts;
+
+    if (value[1].len == 0)
+    {
+        ngx_conf_log_error(NGX_LOG_ERR, cf, 0, "invalid location config: no runable lua code");
+        return NGX_CONF_ERROR;
+    }
+
+    ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+    ccv.cf = cf;
+    ccv.value = &value[1];
+
     pconf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
-    if (ngx_strcmp(cmd->name.data, "lua_content") == 0) pconf->handler = ngx_lua_content_handler;
-    else pconf->handler = ngx_lua_content_by_file_handler;
-    ngx_conf_set_str_slot(cf, cmd, conf);
+    if (ngx_strcmp(cmd->name.data, "lua_content") == 0)
+    {
+        ccv.complex_value = &plocconf->lua_content_code;
+        pconf->handler = ngx_lua_content_handler;
+    }
+    else
+    {
+        ccv.complex_value = &plocconf->lua_content_file;
+        pconf->handler = ngx_lua_content_by_file_handler;
+    }
+    if (ngx_http_compile_complex_value(&ccv) != NGX_OK)
+    {
+        pconf->handler = NULL;
+        ngx_conf_log_error(NGX_LOG_ERR, cf, 0, "invalid location config: ngx_http_compile_complex_value error");
+        return NGX_CONF_ERROR;
+    }
     return NGX_CONF_OK;
 }
 
