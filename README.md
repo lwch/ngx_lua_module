@@ -63,7 +63,7 @@ Each script **must** return a string or nil\. When there is a syntax error or an
 
 **phase:** content
 
-Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error) **(high priority)** or [lua_error_by_file](#lua_error_by_file)\. When there is a file not found error it will return 404 error\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
+Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error) **(high priority)** or [lua_error_by_file](#lua_error_by_file)\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
 
 ### lua_error
 
@@ -106,6 +106,14 @@ Table for request arguments\.
 **context:** lua_error\*
 
 Error message\.
+
+### ngx.err.stat
+
+**syntax:** ngx.err.stat
+
+**context:** lua_error\*
+
+Signed with error number with process always 404 or 500\.
 
 ### ngx.log
 

@@ -229,13 +229,16 @@ void ngx_lua_module_parse_args(ngx_pool_t* pool, u_char* buf, size_t size, struc
     lua_pop(lua, 2); // ngx and ngx.req
 }
 
-void ngx_lua_module_write_error(struct lua_State* lua)
+void ngx_lua_module_write_error(struct lua_State* lua, ngx_uint_t status)
 {
     const char* msg = luaL_checkstring(lua, -1);
 
     ngx_lua_module_get_err(lua);
     lua_pushstring(lua, "msg");
     lua_pushstring(lua, msg);
+    lua_settable(lua, -3);
+    lua_pushstring(lua, "stat");
+    lua_pushnumber(lua, status);
     lua_settable(lua, -3);
 
     lua_pop(lua, 3); // msg, ngx and ngx.err

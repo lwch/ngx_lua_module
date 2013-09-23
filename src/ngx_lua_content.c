@@ -12,13 +12,13 @@
 
 #include "ngx_lua_content.h"
 
-ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua)
+ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua, ngx_uint_t status)
 {
     ngx_lua_main_conf_t* pconf;
 
     pconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
 
-    ngx_lua_module_write_error(lua);
+    ngx_lua_module_write_error(lua, status);
     if (pconf->lua_error_code.len)
     {
         if (luaL_loadbuffer(lua, (const char*)pconf->lua_error_code.data, pconf->lua_error_code.len, "@lua_error"))
@@ -105,8 +105,8 @@ ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua)
 
 ngx_int_t ngx_lua_content_call_code(ngx_http_request_t* r, lua_State* lua, u_char* code, size_t len)
 {
-    if (luaL_loadbuffer(lua, (const char*)code, len, "@lua_content")) return ngx_lua_content_call_error(r, lua);
-    if (lua_pcall(lua, 0, 1, 0)) return ngx_lua_content_call_error(r, lua);
+    if (luaL_loadbuffer(lua, (const char*)code, len, "@lua_content")) return ngx_lua_content_call_error(r, lua, NGX_HTTP_INTERNAL_SERVER_ERROR);
+    if (lua_pcall(lua, 0, 1, 0)) return ngx_lua_content_call_error(r, lua, NGX_HTTP_INTERNAL_SERVER_ERROR);
     return NGX_OK;
 }
 
@@ -126,7 +126,7 @@ ngx_int_t ngx_lua_content_send(ngx_http_request_t* r, lua_State* lua)
     if (b == NULL)
     {
         lua_pop(lua, 1);
-        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_send: Out of memory");
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_send: out of memory");
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
     out.buf = b;
@@ -251,12 +251,16 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
 
         ngx_str_null(&strPath);
 
-        if (access((const char*)src_path.data, 0) == -1) return NGX_HTTP_NOT_FOUND;
+        if (access((const char*)src_path.data, 0) == -1)
+        {
+            lua_pushfstring(pmainconf->lua, "%s doesn't exist", src_path.data);
+            goto faild;
+        }
 
         if (realpath((const char*)src_path.data, path) == NULL)
         {
-            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_by_file_handler: can't get realpath with %s", src_path.data);
-            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            lua_pushfstring(pmainconf->lua, "can't get realpath with %s", src_path.data);
+            goto faild;
         }
 
         strPath.data = (u_char*)path;
@@ -265,15 +269,19 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
         if (ptr == NULL) // doesn't exists
         {
             code = ngx_lua_code_cache_load(strPath);
-            if (code.data == NULL) return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            if (code.data == NULL)
+            {
+                lua_pushstring(pmainconf->lua, "out of memory");
+                goto faild;
+            }
             if (pmainconf->enable_code_cache)
             {
                 dbg("code uncached");
                 ptr = ngx_lua_code_cache_node_new(strPath, code);
                 if (ptr == NULL)
                 {
-                    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "out of memory");
-                    return NGX_HTTP_INTERNAL_SERVER_ERROR;
+                    lua_pushstring(pmainconf->lua, "out of memory");
+                    goto faild;
                 }
                 ngx_pfree(ngx_cycle->pool, code.data);
                 code = ptr->code;
@@ -299,6 +307,15 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
     }
 
     return NGX_OK;
+faild:
+    rc = ngx_lua_content_call_error(r, pmainconf->lua, NGX_HTTP_NOT_FOUND);
+    if (rc == NGX_OK)
+    {
+        rc = ngx_lua_content_send(r, pmainconf->lua);
+        if (rc != NGX_OK) return rc;
+    }
+    else return rc;
+    return rc;
 }
 
 char* ngx_lua_content_readconf(ngx_conf_t* cf, ngx_command_t* cmd, void* conf)
