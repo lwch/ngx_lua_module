@@ -220,6 +220,17 @@ ngx_int_t ngx_lua_content_handler(ngx_http_request_t* r)
     return NGX_OK;
 }
 
+#define faild(status) do {\
+        rc = ngx_lua_content_call_error(r, pmainconf->lua, status); \
+        if (rc == NGX_OK) \
+        { \
+            rc = ngx_lua_content_send(r, pmainconf->lua); \
+            if (rc != NGX_OK) return rc; \
+        } \
+        else return rc; \
+        return rc; \
+    } while (0)
+
 ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
 {
     ngx_lua_main_conf_t* pmainconf;
@@ -254,13 +265,13 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
         if (access((const char*)src_path.data, 0) == -1)
         {
             lua_pushfstring(pmainconf->lua, "%s doesn't exist", src_path.data);
-            goto faild;
+            faild(NGX_HTTP_NOT_FOUND);
         }
 
         if (realpath((const char*)src_path.data, path) == NULL)
         {
             lua_pushfstring(pmainconf->lua, "can't get realpath with %s", src_path.data);
-            goto faild;
+            faild(NGX_HTTP_INTERNAL_SERVER_ERROR);
         }
 
         strPath.data = (u_char*)path;
@@ -272,7 +283,7 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
             if (code.data == NULL)
             {
                 lua_pushstring(pmainconf->lua, "out of memory");
-                goto faild;
+                faild(NGX_HTTP_INTERNAL_SERVER_ERROR);
             }
             if (pmainconf->enable_code_cache)
             {
@@ -281,7 +292,7 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
                 if (ptr == NULL)
                 {
                     lua_pushstring(pmainconf->lua, "out of memory");
-                    goto faild;
+                    faild(NGX_HTTP_INTERNAL_SERVER_ERROR);
                 }
                 ngx_pfree(ngx_cycle->pool, code.data);
                 code = ptr->code;
@@ -307,15 +318,6 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
     }
 
     return NGX_OK;
-faild:
-    rc = ngx_lua_content_call_error(r, pmainconf->lua, NGX_HTTP_NOT_FOUND);
-    if (rc == NGX_OK)
-    {
-        rc = ngx_lua_content_send(r, pmainconf->lua);
-        if (rc != NGX_OK) return rc;
-    }
-    else return rc;
-    return rc;
 }
 
 char* ngx_lua_content_readconf(ngx_conf_t* cf, ngx_command_t* cmd, void* conf)
