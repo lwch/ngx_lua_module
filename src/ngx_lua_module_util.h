@@ -29,5 +29,13 @@ extern void ngx_lua_module_write_error(struct lua_State* lua, ngx_uint_t status)
 extern void ngx_lua_module_set_req_obj(struct lua_State* lua, ngx_http_request_t* r);
 extern ngx_http_request_t* ngx_lua_module_get_req_obj(struct lua_State* lua);
 
+// load code and compile bytecode to p
+// if load code error it will return -1
+// if dump error it will return -2
+extern int ngx_lua_module_code_to_chunk(struct lua_State* lua, u_char* buf, size_t size, ngx_str_t* p);
+
+// load chunk from p
+extern int ngx_lua_module_chunk_load(struct lua_State* lua, ngx_str_t* p);
+
 #endif
 

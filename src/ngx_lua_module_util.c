@@ -281,3 +281,40 @@ ngx_http_request_t* ngx_lua_module_get_req_obj(struct lua_State* lua)
     return r;
 }
 
+int ngx_lua_module_chunk_writer(lua_State* lua, const void* p, size_t sz, void* ud)
+{
+    ngx_str_t* q = ud;
+    u_char* new = ngx_palloc(ngx_cycle->pool, q->len + sz);
+    if (new)
+    {
+        if (q->len) memcpy(new, q->data, q->len);
+        memcpy(new + q->len, p, sz);
+        ngx_pfree(ngx_cycle->pool, q->data);
+        q->data = new;
+        q->len += sz;
+        return 0;
+    }
+    else return 1;
+}
+
+int ngx_lua_module_code_to_chunk(lua_State* lua, u_char* buf, size_t size, ngx_str_t* p)
+{
+    ngx_str_null(p);
+
+    if (luaL_loadbuffer(lua, (const char*)buf, size, "@chunk")) return -1;
+    if (lua_dump(lua, ngx_lua_module_chunk_writer, p)) return -2;
+    lua_pop(lua, 1);
+    return 0;
+}
+
+const char* ngx_lua_module_chunk_reader(lua_State* lua, void* data, size_t* size)
+{
+    ngx_str_t* q = data;
+    *size = q->len;
+    return (const char*)q->data;
+}
+
+int ngx_lua_module_chunk_load(struct lua_State* lua, ngx_str_t* p)
+{
+    return lua_load(lua, ngx_lua_module_chunk_reader, p, NULL);
+}

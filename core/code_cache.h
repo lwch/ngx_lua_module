@@ -5,6 +5,8 @@
 
 #include "hash_table.h"
 
+struct lua_State;
+
 typedef struct
 {
     ngx_str_t path;

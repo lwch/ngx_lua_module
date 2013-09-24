@@ -1,5 +1,9 @@
 #include <ngx_core.h>
 
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
+
 #include "code_cache.h"
 
 size_t ngx_lua_code_cache_core_hash(ngx_str_t key)
