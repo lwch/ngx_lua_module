@@ -89,6 +89,26 @@ When there is a syntax error or any other error with script it will write the lo
 
 When there is a syntax error or any other error it will write the log and return nothing for client\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
 
+### lua_exit
+
+**syntax:** lua_exit &lt;lua-script-str>
+
+**default:** nil
+
+**context:** main
+
+**phase:** exit process
+
+### lua_exit_by_file
+
+**syntax:** lua_exit_by_file &lt;path-to-lua-script-file>
+
+**default:** nil
+
+**context:** main
+
+**phase:** exit process
+
 ## Nginx API for Lua
 
 ### ngx.req.args

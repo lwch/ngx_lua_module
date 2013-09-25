@@ -12,6 +12,7 @@
 #include "ngx_lua_init.h"
 #include "ngx_lua_content.h"
 #include "ngx_lua_code.h"
+#include "ngx_lua_exit.h"
 
 #include "ngx_lua_module.h"
 
@@ -39,7 +40,7 @@ ngx_command_t ngx_lua_commands[] = {
         NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
         ngx_lua_init_readconf,
         NGX_HTTP_MAIN_CONF_OFFSET,
-        0,
+        offsetof(ngx_lua_main_conf_t, lua_init_code),
         NULL
     },
     {
@@ -47,7 +48,7 @@ ngx_command_t ngx_lua_commands[] = {
         NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
         ngx_lua_init_readconf,
         NGX_HTTP_MAIN_CONF_OFFSET,
-        0,
+        offsetof(ngx_lua_main_conf_t, lua_init_file),
         NULL
     },
     {
@@ -80,6 +81,22 @@ ngx_command_t ngx_lua_commands[] = {
         ngx_lua_error_readconf,
         NGX_HTTP_MAIN_CONF_OFFSET,
         offsetof(ngx_lua_main_conf_t, lua_error_file),
+        NULL
+    },
+    {
+        ngx_string("lua_exit"),
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_lua_exit_readconf,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(ngx_lua_main_conf_t, lua_exit_code),
+        NULL
+    },
+    {
+        ngx_string("lua_exit_by_file"),
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_lua_exit_readconf,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(ngx_lua_main_conf_t, lua_exit_file),
         NULL
     },
     ngx_null_command
@@ -121,6 +138,8 @@ void* ngx_lua_create_main_conf(ngx_conf_t* cf)
 
     ngx_str_null(&pconf->lua_init_code);
     ngx_str_null(&pconf->lua_init_file);
+    ngx_str_null(&pconf->lua_exit_code);
+    ngx_str_null(&pconf->lua_exit_file);
     ngx_str_null(&pconf->lua_error_code);
     ngx_str_null(&pconf->lua_error_file);
     pconf->enable_code_cache = NGX_CONF_UNSET_UINT;
@@ -203,12 +222,15 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
     }
     else if (pconf->lua_init_file.len)
     {
-        //code_cache_node_t* ptr;
         char path[PATH_MAX];
         ngx_str_t strPath;
         ngx_str_t code;
 
-        if (access((const char*)pconf->lua_init_file.data, 0) == -1) return NGX_ERROR;
+        if (access((const char*)pconf->lua_init_file.data, 0) == -1)
+        {
+            ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_by_file_handler: file %s doesn't exist", pconf->lua_init_file.data);
+            return NGX_ERROR;
+        }
 
         if (realpath((const char*)pconf->lua_init_file.data, path) == NULL)
         {
@@ -219,7 +241,11 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
         strPath.data = (u_char*)path;
         strPath.len = strlen(path);
         code = ngx_lua_code_cache_load(strPath);
-        if (code.data == NULL) return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        if (code.data == NULL)
+        {
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: out of memory");
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
 
         if (luaL_loadbuffer(pconf->lua, (const char*)code.data, code.len, "@lua_init_by_file"))
         {
@@ -244,6 +270,59 @@ void ngx_lua_exit_process(ngx_cycle_t* cycle)
     dbg("ngx_lua_exit_process\n");
 
     pconf = ngx_http_cycle_get_module_main_conf(cycle, ngx_lua_module);
+
+    if (pconf->lua_exit_code.len)
+    {
+        if (luaL_loadbuffer(pconf->lua, (const char*)pconf->lua_exit_code.data, pconf->lua_exit_code.len, "@lua_exit") == 0)
+        {
+            if (lua_pcall(pconf->lua, 0, 0, 0))
+            {
+                ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_exit_process: lua_pcall error");
+                ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_exit_process: %s", lua_tostring(pconf->lua, -1));
+            }
+        }
+        else
+        {
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_exit_process: luaL_loadbuffer error");
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_exit_process: %s", lua_tostring(pconf->lua, -1));
+        }
+    }
+    else if (pconf->lua_exit_file.len)
+    {
+        char path[PATH_MAX];
+        ngx_str_t strPath;
+        ngx_str_t code;
+
+        if (access((const char*)pconf->lua_exit_file.data, 0) != -1)
+        {
+            if (realpath((const char*)pconf->lua_exit_file.data, path))
+            {
+                strPath.data = (u_char*)path;
+                strPath.len = strlen(path);
+                code = ngx_lua_code_cache_load(strPath);
+                if (code.data)
+                {
+                    if (luaL_loadbuffer(pconf->lua, (const char*)code.data, code.len, "@lua_exit_by_file") == 0)
+                    {
+                        if (lua_pcall(pconf->lua, 0, 0, 0))
+                        {
+                            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_exit_process: lua_pcall error");
+                            ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_exit_process: %s", lua_tostring(pconf->lua, -1));
+                        }
+                    }
+                    else
+                    {
+                        ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_exit_process: luaL_loadbuffer error");
+                        ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_exit_process: %s", lua_tostring(pconf->lua, -1));
+                    }
+                }
+                else ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_exit_process: out of memory");
+            }
+            else ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_by_file_handler: can't get realpath with %s", pconf->lua_exit_file.data);
+        }
+        else ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_by_file_handler: file %s doesn't exist", pconf->lua_exit_file.data);
+    }
+
     if (pconf->cache_table) ngx_lua_core_hash_table_free(pconf->cache_table);
     if (pconf->lua) lua_close(pconf->lua);
 }
