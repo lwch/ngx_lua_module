@@ -247,6 +247,12 @@ ngx_int_t ngx_lua_init_process(ngx_cycle_t* cycle)
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
+        ngx_lua_module_get_scp(pconf->lua);
+        lua_pushstring(pconf->lua, "path");
+        lua_pushstring(pconf->lua, path);
+        lua_settable(pconf->lua, -3);
+        lua_pop(pconf->lua, 2);
+
         if (luaL_loadbuffer(pconf->lua, (const char*)code.data, code.len, "@lua_init_by_file"))
         {
             ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "ngx_lua_init_process: luaL_loadbuffer error");
@@ -302,6 +308,11 @@ void ngx_lua_exit_process(ngx_cycle_t* cycle)
                 code = ngx_lua_code_cache_load(strPath);
                 if (code.data)
                 {
+                    ngx_lua_module_get_scp(pconf->lua);
+                    lua_pushstring(pconf->lua, "path");
+                    lua_pushstring(pconf->lua, path);
+                    lua_settable(pconf->lua, -3);
+                    lua_pop(pconf->lua, 2);
                     if (luaL_loadbuffer(pconf->lua, (const char*)code.data, code.len, "@lua_exit_by_file") == 0)
                     {
                         if (lua_pcall(pconf->lua, 0, 0, 0))

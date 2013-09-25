@@ -18,7 +18,10 @@ void ngx_lua_module_init(lua_State* lua)
     lua_pop(lua, 2); // ngx and ngx.req
 
     ngx_lua_get_var(lua);
-    lua_pop(lua, 2); // ngx and ngx.req
+    lua_pop(lua, 2); // ngx and ngx.var
+
+    ngx_lua_module_get_scp(lua);
+    lua_pop(lua, 2); // ngx and ngx.scp
 
     ngx_lua_module_get_err(lua);
     lua_pop(lua, 1); // ngx.err
@@ -163,6 +166,24 @@ void ngx_lua_module_get_var(lua_State* lua)
     lua_newtable(lua);
     lua_settable(lua, -3);
     lua_pushstring(lua, "err");
+    lua_gettable(lua, -2);
+}
+
+void ngx_lua_module_get_scp(lua_State* lua)
+{
+    lua_getglobal(lua, "ngx");
+    if (lua_isnil(lua, -1))
+    {
+        lua_pop(lua, -1);
+        lua_newtable(lua);
+        lua_setglobal(lua, "ngx");
+        lua_getglobal(lua, "ngx");
+    }
+
+    lua_pushstring(lua, "scp");
+    lua_newtable(lua);
+    lua_settable(lua, -3);
+    lua_pushstring(lua, "scp");
     lua_gettable(lua, -2);
 }
 

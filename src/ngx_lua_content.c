@@ -63,6 +63,12 @@ ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua, ngx_
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
+        ngx_lua_module_get_scp(pconf->lua);
+        lua_pushstring(pconf->lua, "path");
+        lua_pushstring(pconf->lua, path);
+        lua_settable(pconf->lua, -3);
+        lua_pop(pconf->lua, 2);
+
         strPath.data = (u_char*)path;
         strPath.len = strlen(path);
         ptr = ngx_lua_code_cache_key_exists(pconf->cache_table, strPath);
@@ -77,7 +83,7 @@ ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua, ngx_
             if (pconf->enable_code_cache)
             {
                 ngx_str_t cache;
-                dbg("code uncached");
+                dbg("code uncached\n");
                 if (ngx_lua_module_code_to_chunk(lua, code.data, code.len, &cache))
                 {
                     ngx_pfree(ngx_cycle->pool, code.data);
@@ -103,8 +109,9 @@ ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua, ngx_
         }
         else
         {
+            dbg("code cached\n");
             code = ptr->code;
-            if (luaL_loadbuffer(lua, (const char*)code.data, code.len, "@lua_error")) faild;
+            if (ngx_lua_module_chunk_load(lua, &code)) faild;
         }
 
         if (lua_pcall(lua, 0, 1, 0))
@@ -231,12 +238,9 @@ ngx_int_t ngx_lua_content_handler(ngx_http_request_t* r)
     if (code.len)
     {
         rc = ngx_lua_content_call_code(r, pmainconf->lua, code.data, code.len);
-        if (rc == NGX_OK)
-        {
-            rc = ngx_lua_content_send(r, pmainconf->lua);
-            if (rc != NGX_OK) return rc;
-        }
-        else return rc;
+        if (rc != NGX_OK) return rc;
+        rc = ngx_lua_content_send(r, pmainconf->lua);
+        if (rc != NGX_OK) return rc;
     }
 
     if (top != lua_gettop(pmainconf->lua))
@@ -267,17 +271,25 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
     ngx_int_t rc;
     int top;
     ngx_str_t src_path;
+    u_char new_path[PATH_MAX];
     dbg("ngx_lua_content_by_file_handler\n");
 
     pmainconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
     plocconf  = ngx_http_get_module_loc_conf(r, ngx_lua_module);
 
+    // complex path
     if (ngx_http_complex_value(r, &plocconf->lua_content_file, &src_path) != NGX_OK)
     {
         ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ngx_lua_content_handler: ngx_http_complex_value error");
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
+    // new path with\0
+    memcpy(new_path, src_path.data, src_path.len);
+    new_path[src_path.len] = 0;
+    src_path.data = new_path;
+
+    // register ngx.req.args
     top = lua_gettop(pmainconf->lua);
     ngx_lua_module_set_req_obj(pmainconf->lua, r);
     ngx_lua_module_parse_args(r->pool, r->args.data, r->args.len, pmainconf->lua);
@@ -291,22 +303,32 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
 
         ngx_str_null(&strPath);
 
+        // file exists
         if (access((const char*)src_path.data, 0) == -1)
         {
             lua_pushfstring(pmainconf->lua, "%s doesn't exist", src_path.data);
             faild(NGX_HTTP_NOT_FOUND);
         }
 
+        // get realpath
         if (realpath((const char*)src_path.data, path) == NULL)
         {
             lua_pushfstring(pmainconf->lua, "can't get realpath with %s", src_path.data);
             faild(NGX_HTTP_INTERNAL_SERVER_ERROR);
         }
 
+        // register ngx.scp.path
+        ngx_lua_module_get_scp(pmainconf->lua);
+        lua_pushstring(pmainconf->lua, "path");
+        lua_pushstring(pmainconf->lua, path);
+        lua_settable(pmainconf->lua, -3);
+        lua_pop(pmainconf->lua, 2);
+
+        // lookup cache
         strPath.data = (u_char*)path;
         strPath.len = strlen(path);
         ptr = ngx_lua_code_cache_key_exists(pmainconf->cache_table, strPath);
-        if (ptr == NULL) // doesn't exists
+        if (ptr == NULL) // doesn't exist
         {
             code = ngx_lua_code_cache_load(strPath);
             if (code.data == NULL)
@@ -317,7 +339,7 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
             if (pmainconf->enable_code_cache)
             {
                 ngx_str_t cache;
-                dbg("code uncached");
+                dbg("code uncached\n");
                 if (ngx_lua_module_code_to_chunk(pmainconf->lua, code.data, code.len, &cache))
                 {
                     faild(NGX_HTTP_INTERNAL_SERVER_ERROR);
@@ -337,17 +359,15 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
         }
         else
         {
+            dbg("code cached\n");
             code = ptr->code;
-            rc = ngx_lua_content_call_code(r, pmainconf->lua, code.data, code.len);
+            rc = ngx_lua_content_call_chunk(r, pmainconf->lua, &code);
         }
 
         ngx_pfree(ngx_cycle->pool, code.data);
-        if (rc == NGX_OK)
-        {
-            rc = ngx_lua_content_send(r, pmainconf->lua);
-            if (rc != NGX_OK) return rc;
-        }
-        else return rc;
+        if (rc != NGX_OK) return rc;
+        rc = ngx_lua_content_send(r, pmainconf->lua);
+        if (rc != NGX_OK) return rc;
     }
 
     if (top != lua_gettop(pmainconf->lua))

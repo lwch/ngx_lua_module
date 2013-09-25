@@ -147,15 +147,23 @@ The log_level from [log_level](https://github.com/nginx/nginx/blob/master/src/co
 
 **syntax:** ngx.var.VAR_NAME
 
-**content:** lua_content\*, lua_error\*
+**context:** lua_content\*, lua_error\*
 
 VARIABLE for nginx\.
+
+### ngx.scp.path
+
+**syntax:** ngx.scp.path
+
+**context:** lua_init_by_file, lua_content_by_file, lua_error_by_file, lua_exit_by_file
+
+Script realpath for current context\.
 
 ### ngx.__req__
 
 **syntax:** ngx.\_\_req\_\_
 
-**content:** lua_content\*, lua_error\*
+**context:** lua_content\*, lua_error\*
 
 ngx_http_request_t structure\.
 

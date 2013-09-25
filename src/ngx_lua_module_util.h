@@ -20,6 +20,10 @@ extern void ngx_lua_module_get_req(struct lua_State* lua);
 // after call ngx.err in stack top and ngx in second
 extern void ngx_lua_module_get_err(struct lua_State* lua);
 
+// get or register ngx.script in lua_State
+// after call ngx.script in stack top and ngx in second
+extern void ngx_lua_module_get_scp(struct lua_State* lua);
+
 // parse args into ngx.req.args with table
 extern void ngx_lua_module_parse_args(ngx_pool_t* pool, u_char* buf, size_t size, struct lua_State* lua);
 
