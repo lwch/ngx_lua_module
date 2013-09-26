@@ -262,7 +262,7 @@ void ngx_lua_module_write_error(struct lua_State* lua, ngx_uint_t status)
     lua_pushnumber(lua, status);
     lua_settable(lua, -3);
 
-    lua_pop(lua, 3); // msg, ngx and ngx.err
+    lua_pop(lua, 2); // ngx and ngx.err
 }
 
 void ngx_lua_module_set_req_obj(struct lua_State* lua, ngx_http_request_t* r)
