@@ -41,5 +41,8 @@ extern int ngx_lua_module_code_to_chunk(struct lua_State* lua, u_char* buf, size
 // load chunk from p
 extern int ngx_lua_module_chunk_load(struct lua_State* lua, ngx_str_t* p);
 
+// replace _G to new table
+extern void ngx_lua_module_replace_global(struct lua_State* lua);
+
 #endif
 

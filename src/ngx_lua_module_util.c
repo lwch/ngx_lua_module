@@ -339,3 +339,21 @@ int ngx_lua_module_chunk_load(struct lua_State* lua, ngx_str_t* p)
 {
     return lua_load(lua, ngx_lua_module_chunk_reader, p, NULL);
 }
+
+void ngx_lua_module_replace_global(lua_State* lua)
+{
+    int envT, t;
+    lua_newtable(lua);
+    envT = lua_gettop(lua);
+
+    lua_newtable(lua);
+    t = lua_gettop(lua);
+    lua_pushstring(lua, "__index");
+    lua_getfield(lua, LUA_GLOBALSINDEX, "_G");
+    lua_settable(lua, t);
+
+    lua_setmetatable(lua, envT);
+
+    lua_replace(lua, LUA_GLOBALSINDEX);
+}
+

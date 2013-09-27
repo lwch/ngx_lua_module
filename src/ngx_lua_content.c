@@ -237,6 +237,7 @@ ngx_int_t ngx_lua_content_handler(ngx_http_request_t* r)
 
     if (code.len)
     {
+        ngx_lua_module_replace_global(pmainconf->lua);
         rc = ngx_lua_content_call_code(r, pmainconf->lua, code.data, code.len);
         if (rc != NGX_OK) return rc;
         rc = ngx_lua_content_send(r, pmainconf->lua);
@@ -328,6 +329,7 @@ ngx_int_t ngx_lua_content_by_file_handler(ngx_http_request_t* r)
         strPath.data = (u_char*)path;
         strPath.len = strlen(path);
         ptr = ngx_lua_code_cache_key_exists(pmainconf->cache_table, strPath);
+        ngx_lua_module_replace_global(pmainconf->lua);
         if (ptr == NULL) // doesn't exist
         {
             code = ngx_lua_code_cache_load(strPath);
