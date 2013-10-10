@@ -322,7 +322,7 @@ int ngx_lua_module_code_to_chunk(lua_State* lua, u_char* buf, size_t size, ngx_s
 {
     ngx_str_null(p);
 
-    if (luaL_loadbuffer(lua, (const char*)buf, size, "@chunk")) return -1;
+    if (luaL_loadbuffer(lua, (const char*)buf, size, "@lua_call_chunk")) return -1;
     if (lua_dump(lua, ngx_lua_module_chunk_writer, p)) return -2;
     lua_pop(lua, 1);
     return 0;
@@ -355,5 +355,21 @@ void ngx_lua_module_replace_global(lua_State* lua)
     lua_setmetatable(lua, envT);
 
     lua_replace(lua, LUA_GLOBALSINDEX);
+}
+
+extern ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, struct lua_State* lua, ngx_uint_t status);
+
+ngx_int_t ngx_lua_content_call_code(ngx_http_request_t* r, lua_State* lua, u_char* code, size_t len)
+{
+    if (luaL_loadbuffer(lua, (const char*)code, len, "@lua_call_code")) return ngx_lua_content_call_error(r, lua, NGX_HTTP_INTERNAL_SERVER_ERROR);
+    if (lua_pcall(lua, 0, 1, 0)) return ngx_lua_content_call_error(r, lua, NGX_HTTP_INTERNAL_SERVER_ERROR);
+    return NGX_OK;
+}
+
+ngx_int_t ngx_lua_content_call_chunk(ngx_http_request_t* r, lua_State* lua, ngx_str_t* chunk)
+{
+    if (ngx_lua_module_chunk_load(lua, chunk)) return ngx_lua_content_call_error(r, lua, NGX_HTTP_INTERNAL_SERVER_ERROR);
+    if (lua_pcall(lua, 0, 1, 0)) return ngx_lua_content_call_error(r, lua, NGX_HTTP_INTERNAL_SERVER_ERROR);
+    return NGX_OK;
 }
 

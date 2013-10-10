@@ -44,5 +44,9 @@ extern int ngx_lua_module_chunk_load(struct lua_State* lua, ngx_str_t* p);
 // replace _G to new table
 extern void ngx_lua_module_replace_global(struct lua_State* lua);
 
+// lua_call
+extern ngx_int_t ngx_lua_content_call_code(ngx_http_request_t* r, struct lua_State* lua, u_char* code, size_t len);
+extern ngx_int_t ngx_lua_content_call_chunk(ngx_http_request_t* r, struct lua_State* lua, ngx_str_t* chunk);
+
 #endif
 

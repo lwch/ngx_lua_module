@@ -13,10 +13,12 @@
 #include "ngx_lua_content.h"
 #include "ngx_lua_code.h"
 #include "ngx_lua_exit.h"
+#include "ngx_lua_access.h"
 
 #include "ngx_lua_module.h"
 
 // http module
+ngx_int_t ngx_lua_post_conf(ngx_conf_t* cf);
 void* ngx_lua_create_main_conf(ngx_conf_t* cf);
 char* ngx_lua_init_main_conf(ngx_conf_t* cf, void* conf);
 void* ngx_lua_create_loc_conf(ngx_conf_t* cf);
@@ -68,9 +70,25 @@ ngx_command_t ngx_lua_commands[] = {
         NULL
     },
     {
+        ngx_string("lua_access_by_file"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_http_set_complex_value_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_lua_loc_conf_t, lua_access_file),
+        NULL
+    },
+    {
+        ngx_string("lua_access"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_http_set_complex_value_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_lua_loc_conf_t, lua_access_code),
+        NULL
+    },
+    {
         ngx_string("lua_error"),
         NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
-        ngx_lua_error_readconf,
+        ngx_conf_set_str_slot,
         NGX_HTTP_MAIN_CONF_OFFSET,
         offsetof(ngx_lua_main_conf_t, lua_error_code),
         NULL
@@ -78,7 +96,7 @@ ngx_command_t ngx_lua_commands[] = {
     {
         ngx_string("lua_error_by_file"),
         NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
-        ngx_lua_error_readconf,
+        ngx_conf_set_str_slot,
         NGX_HTTP_MAIN_CONF_OFFSET,
         offsetof(ngx_lua_main_conf_t, lua_error_file),
         NULL
@@ -104,7 +122,7 @@ ngx_command_t ngx_lua_commands[] = {
 
 ngx_http_module_t ngx_lua_module_ctx = {
     NULL,                     // pre configuration
-    NULL,                     // post configuration
+    ngx_lua_post_conf,        // post configuration
     ngx_lua_create_main_conf, // create main conf
     ngx_lua_init_main_conf,   // init main conf
     NULL,                     // create srv conf
@@ -127,6 +145,35 @@ ngx_module_t ngx_lua_module = {
     NULL,                 // exit master
     NGX_MODULE_V1_PADDING
 };
+
+ngx_int_t ngx_lua_access_phase_handler(ngx_http_request_t *r)
+{
+    ngx_int_t rc;
+    dbg("ngx_lua_access_phase_handler\n");
+
+    rc = ngx_lua_access_handler(r);
+
+    if (rc == NGX_OK) return NGX_DECLINED;
+    else return rc;
+}
+
+ngx_int_t ngx_lua_post_conf(ngx_conf_t* cf)
+{
+    ngx_http_handler_pt        *h;
+    ngx_http_core_main_conf_t  *cmcf;
+    dbg("ngx_lua_post_conf\n");
+
+    cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
+
+    h = ngx_array_push(&cmcf->phases[NGX_HTTP_ACCESS_PHASE].handlers);
+    if (h == NULL) {
+        return NGX_ERROR;
+    }
+
+    *h = ngx_lua_access_phase_handler;
+
+    return NGX_OK;
+}
 
 void* ngx_lua_create_main_conf(ngx_conf_t* cf)
 {
@@ -162,7 +209,7 @@ void* ngx_lua_create_loc_conf(ngx_conf_t* cf)
 {
     ngx_lua_loc_conf_t* conf;
     dbg("ngx_lua_create_loc_conf\n");
-    
+
     conf = ngx_pcalloc(cf->pool, sizeof(ngx_lua_loc_conf_t));
     if (conf == NULL) return NGX_CONF_ERROR;
 
