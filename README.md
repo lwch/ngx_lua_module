@@ -1,25 +1,25 @@
-# ngx_lua_module
+# ngx\_lua\_module
 
 ## Description
 
-each worker process has it's own lua_State object in ngx_lua_main_conf_t structure\.
+each worker process has it's own lua\_State object in ngx\_lua\_main\_conf\_t structure\.
 
 ## Build Status
 [![Build Status](https://travis-ci.org/lwch/ngx_lua_module.png)](https://travis-ci.org/lwch/ngx_lua_module)
 
 ## Directives
 
-### lua_code_cache
+### lua\_code\_cache
 
-**syntax:** lua_code_cache on | off
+**syntax:** lua\_code\_cache on | off
 
-**default:** lua_code_cache on
+**default:** lua\_code\_cache on
 
 **context:** main
 
-### lua_init
+### lua\_init
 
-**syntax:** lua_init &lt;lua-script-str>
+**syntax:** lua\_init &lt;lua-script-str>
 
 **default:** nil
 
@@ -29,9 +29,9 @@ each worker process has it's own lua_State object in ngx_lua_main_conf_t structu
 
 When there is a syntax error or any other error with script it will write the log and **still working**\.
 
-### lua_init_by_file
+### lua\_init\_by\_file
 
-**syntax:** lua_init &lt;path-to-lua-script-file>
+**syntax:** lua\_init\_by\_file &lt;path-to-lua-script-file>
 
 **default:** nil
 
@@ -41,9 +41,9 @@ When there is a syntax error or any other error with script it will write the lo
 
 When there is a syntax error or any other error it will write the log and **still working**\.
 
-### lua_content
+### lua\_content
 
-**syntax:** lua_content &lt;lua-script-str>
+**syntax:** lua\_content &lt;lua-script-str>
 
 **default:** nil
 
@@ -53,9 +53,9 @@ When there is a syntax error or any other error it will write the log and **stil
 
 Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error) **(high priority)** or [lua_error_by_file](#lua_error_by_file)\.
 
-### lua_content_by_file
+### lua\_content\_by\_file
 
-**syntax:** lua_content_by_file &lt;path-to-lua-script-file>
+**syntax:** lua\_content\_by\_file &lt;path-to-lua-script-file>
 
 **default:** nil
 
@@ -65,9 +65,33 @@ Each script **must** return a string or nil\. When there is a syntax error or an
 
 Each script **must** return a string or nil\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error) **(high priority)** or [lua_error_by_file](#lua_error_by_file)\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
 
-### lua_error
+### lua\_access
 
-**syntax:** lua_error &lt;lua-script-str>
+**syntax:** lua\_access &lt;lua-script-str>
+
+**default:** nil
+
+**context:** location
+
+**phase:** access
+
+Each script **must** return true or false\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error) **(high priority)** or [lua_error_by_file](#lua_error_by_file)\.
+
+### lua\_access\_by\_file
+
+**syntax:** lua\_access\_by\_file &lt;path-to-lua-script-file>
+
+**default:** nil
+
+**context:** location
+
+**phase:** access
+
+Each script **must** return true or false\. When there is a syntax error or any other error with script it will pass to [lua_error](#lua_error) **(high priority)** or [lua_error_by_file](#lua_error_by_file)\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
+
+### lua\_error
+
+**syntax:** lua\_error &lt;lua-script-str>
 
 **default:** nil
 
@@ -77,9 +101,9 @@ Each script **must** return a string or nil\. When there is a syntax error or an
 
 When there is a syntax error or any other error with script it will write the log and return nothing for client\.
 
-### lua_error_by_file
+### lua\_error\_by\_file
 
-**syntax:** lua_error_by_file &lt;path-to-lua-script-file>
+**syntax:** lua\_error\_by\_file &lt;path-to-lua-script-file>
 
 **default:** nil
 
@@ -89,9 +113,9 @@ When there is a syntax error or any other error with script it will write the lo
 
 When there is a syntax error or any other error it will write the log and return nothing for client\. When [lua_code_cache](#lua_code_cache) is on the script will cache with it's absolute path\.
 
-### lua_exit
+### lua\_exit
 
-**syntax:** lua_exit &lt;lua-script-str>
+**syntax:** lua\_exit &lt;lua-script-str>
 
 **default:** nil
 
@@ -99,9 +123,9 @@ When there is a syntax error or any other error it will write the log and return
 
 **phase:** exit process
 
-### lua_exit_by_file
+### lua\_exit\_by\_file
 
-**syntax:** lua_exit_by_file &lt;path-to-lua-script-file>
+**syntax:** lua\_exit\_by\_file &lt;path-to-lua-script-file>
 
 **default:** nil
 
@@ -115,7 +139,7 @@ When there is a syntax error or any other error it will write the log and return
 
 **syntax:** ngx.req.args
 
-**context:** lua_content\*, lua_error\*
+**context:** lua\_content\*, lua\_access\*, lua\_error\*
 
 Table for request arguments\.
 
@@ -123,7 +147,7 @@ Table for request arguments\.
 
 **syntax:** ngx.err.msg
 
-**context:** lua_error\*
+**context:** lua\_error\*
 
 Error message\.
 
@@ -131,23 +155,23 @@ Error message\.
 
 **syntax:** ngx.err.stat
 
-**context:** lua_error\*
+**context:** lua\_error\*
 
 Signed with error number with process always 404 or 500\.
 
 ### ngx.log
 
-**syntax:** ngx.log(log_level, ...)
+**syntax:** ngx.log(log\_level, ...)
 
-**context:** lua_content\*, lua_error\*
+**context:** lua\_content\*, lua\_access\*, lua\_error\*
 
-The log_level from [log_level](https://github.com/nginx/nginx/blob/master/src/core/ngx_log.h)\.
+The log\_level from [log_level](https://github.com/nginx/nginx/blob/master/src/core/ngx_log.h)\.
 
 ### ngx.var.VARIABLE
 
-**syntax:** ngx.var.VAR_NAME
+**syntax:** ngx.var.VAR\_NAME
 
-**context:** lua_content\*, lua_error\*
+**context:** lua\_content\*, lua\_access\*, lua\_error\*
 
 VARIABLE for nginx\.
 
@@ -155,17 +179,17 @@ VARIABLE for nginx\.
 
 **syntax:** ngx.scp.path
 
-**context:** lua_init_by_file, lua_content_by_file, lua_error_by_file, lua_exit_by_file
+**context:** lua\_init\_by\_file, lua\_content\_by\_file, lua\_access\_by\_file, lua\_error\_by\_file, lua\_exit\_by\_file
 
 Script realpath for current context\.
 
-### ngx.__req__
+### ngx.\_\_req\_\_
 
 **syntax:** ngx.\_\_req\_\_
 
-**context:** lua_content\*, lua_error\*
+**context:** lua\_content\*, lua\_access\* lua\_error\*
 
-ngx_http_request_t structure\.
+ngx\_http\_request\_t structure\.
 
 ## TODO
 
