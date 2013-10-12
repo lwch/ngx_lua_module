@@ -20,10 +20,12 @@
 ngx_int_t ngx_lua_content_call_error(ngx_http_request_t* r, lua_State* lua, ngx_uint_t status)
 {
     ngx_lua_main_conf_t* pconf;
+    dbg("ngx_lua_content_call_error\n");
 
     pconf = ngx_http_get_module_main_conf(r, ngx_lua_module);
 
     ngx_lua_module_write_error(lua, status);
+    lua_pop(lua, 1);
     if (pconf->lua_error_code.len)
     {
         if (luaL_loadbuffer(lua, (const char*)pconf->lua_error_code.data, pconf->lua_error_code.len, "@lua_error"))
