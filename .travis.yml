@@ -2,7 +2,7 @@ language: c
 compiler:
     - gcc
     - clang
-before_script: git clone git@github.com:antirez/redis.git redis && cd redis
+before_script: git submodule update --init --recursive && cd nginx
 script: ./configure --add-module=../ && make
 notifications:
     recipients:
