@@ -1,3 +1,0 @@
-[submodule "nginx"]
-	path = nginx
-	url = https://github.com/nginx/nginx.git

@@ -3,7 +3,6 @@ compiler:
     - gcc
     - clang
 before_script:
-#    - git submodule update --init --recursive
     - git clone https://github.com/nginx/nginx.git
     - cd nginx
     - sudo apt-get update
