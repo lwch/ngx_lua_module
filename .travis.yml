@@ -6,7 +6,7 @@ before_script:
     - git submodule update --init --recursive
     - cd nginx
     - sudo apt-get update
-    - sudo apt-get install luajit
+    - sudo apt-get install libluajit-5.1-dev
 script: ./configure --add-module=../ && make
 notifications:
     recipients:
