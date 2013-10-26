@@ -44,19 +44,24 @@ END
     else
         ngx_feature="LuaJIT library"
         ngx_feature_libs="-lluajit-5.1 -lm"
+        ngx_feature_path="/usr/include/luajit-2.0"
+        if [ $NGX_RPATH = YES ]; then
+            ngx_feature_libs="-R/usr/lib -L/usr/lib -lm -lluajit-5.1"
+        else
+            ngx_feature_libs="-L/usr/lib -lm -lluajit-5.1"
+        fi
         . auto/feature
 
         if [ $ngx_found = no ]; then
             ngx_feature="Lua library"
             ngx_feature_libs="-llua -m"
-            . auto/feature
-        else
-            ngx_feature_path="/usr/include/luajit-2.0"
+            ngx_feature_path="/usr/include/lua5.1"
             if [ $NGX_RPATH = YES ]; then
-                ngx_feature_libs="-R/usr/lib -L/usr/lib -lm -lluajit-5.1"
+                ngx_feature_libs="-R/usr/lib -L/usr/lib -lm -llua5.1"
             else
-                ngx_feature_libs="-L/usr/lib -lm -lluajit-5.1"
+                ngx_feature_libs="-L/usr/lib -lm -llua5.1"
             fi
+            . auto/feature
         fi
 
         if [ $ngx_found = no ]; then
@@ -64,13 +69,6 @@ END
             $0: error: ngx_lua_module requires the Lua or LuaJIT library, but we cannot find standard Lua there.
 END
             exit 1
-        else
-            ngx_feature_path="/usr/include/lua5.1"
-            if [ $NGX_RPATH = YES ]; then
-                ngx_feature_libs="-R/usr/lib -L/usr/lib -lm -llua5.1"
-            else
-                ngx_feature_libs="-L/usr/lib -lm -llua5.1"
-            fi
         fi
     fi
 fi
